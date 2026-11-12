@@ -3,14 +3,25 @@ import SwiftUI
 import UIKit
 
 enum AppTheme {
-    // Red palette
-    static let accent = Color(red: 0.96, green: 0.20, blue: 0.19) // Bright Red
-    static let accentDeep = Color(red: 0.70, green: 0.05, blue: 0.09) // Deep Crimson
-    static let accentGradient = LinearGradient(
-        colors: [accent, accentDeep],
-        startPoint: .leading,
-        endPoint: .trailing
-    )
+    static let accentStorageKey = "roboAccentHex"
+    static let streamerModeStorageKey = "roboStreamerMode"
+    static let defaultAccentHex = "#F53331"
+
+    static var accent: Color {
+        Color(hex: UserDefaults.standard.string(forKey: accentStorageKey) ?? defaultAccentHex)
+    }
+
+    static var accentDeep: Color {
+        Color(hex: UserDefaults.standard.string(forKey: accentStorageKey) ?? defaultAccentHex).opacity(0.72)
+    }
+
+    static var accentGradient: LinearGradient {
+        LinearGradient(
+            colors: [accent, accentDeep],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
     static let pageBackground = Color.black
     static let consoleBackground = Color.white.opacity(0.055)
     static let card = Color(red: 0.10, green: 0.10, blue: 0.11).opacity(0.62) // Transparent dark-grey cards
@@ -650,5 +661,66 @@ final class VitaBannerPlayerView: UIView {
         player?.pause()
         player = nil
         looper = nil
+    }
+}
+
+
+extension Color {
+    init(hex: String) {
+        let normalized = Color.normalizedHex(hex) ?? AppTheme.defaultAccentHex
+        var number: UInt64 = 0
+        Scanner(string: String(normalized.dropFirst())).scanHexInt64(&number)
+        let red = Double((number >> 16) & 0xFF) / 255.0
+        let green = Double((number >> 8) & 0xFF) / 255.0
+        let blue = Double(number & 0xFF) / 255.0
+        self.init(red: red, green: green, blue: blue)
+    }
+
+    static func normalizedHex(_ value: String) -> String? {
+        var text = value.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if text.hasPrefix("#") { text.removeFirst() }
+        guard text.count == 6,
+              text.allSatisfy({ "0123456789ABCDEF".contains($0) }) else { return nil }
+        return "#\(text)"
+    }
+
+    static func isAllowedAccentHex(_ value: String) -> Bool {
+        guard let normalized = normalizedHex(value) else { return false }
+        var number: UInt64 = 0
+        Scanner(string: String(normalized.dropFirst())).scanHexInt64(&number)
+        let r = Double((number >> 16) & 0xFF)
+        let g = Double((number >> 8) & 0xFF)
+        let b = Double(number & 0xFF)
+        let luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
+        return luminance > 0.08
+    }
+}
+
+struct StreamerPrivacyOverlay: View {
+    var body: some View {
+        ZStack {
+            AppTheme.pageBackground.ignoresSafeArea()
+            FallingStarsBackground()
+            VStack(spacing: 16) {
+                Image(systemName: "iphone.gen3")
+                    .font(.system(size: 42, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                Text("About Robo iOS")
+                    .font(.system(size: 27, weight: .bold))
+                    .foregroundStyle(.white)
+                Text("It's an iOS app that controls functions and tools, designed by Shafay.")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 360)
+                Text("Streamer Mode")
+                    .font(.system(size: 12, weight: .bold))
+                    .tracking(1.2)
+                    .foregroundStyle(AppTheme.accent)
+            }
+            .padding(28)
+            .frame(maxWidth: 430)
+        }
+        .accessibilityHidden(true)
     }
 }
