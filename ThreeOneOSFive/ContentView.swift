@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var showNotice = true
     @State private var showSettings = false
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
+    @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
     @State private var profileCountdownNow = Date()
     @State private var noticeMessage = "Stay connected and get the latest updates, news, and announcements right on your bot!"
     @State private var noticeURL = URL(string: "https://t.me/roboiosbot")!
@@ -76,7 +77,7 @@ struct ContentView: View {
                 .padding(.bottom, 4)
         }
         .tint(AppTheme.accent)
-        .preferredColorScheme(.dark)
+.preferredColorScheme(appearance == "light" ? .light : .dark)
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environmentObject(appState)
@@ -156,7 +157,7 @@ struct ContentView: View {
             HStack {
                 Text("Select App")
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.primaryText)
                 Spacer()
                 Button {
                     showSettings = true
@@ -252,8 +253,18 @@ struct ContentView: View {
         }
     }
 
+    private var bannerResourceName: String {
+        switch Color.normalizedHex(accentHex) ?? AppTheme.defaultAccentHex {
+        case "#147BFF": return "banner-blue"
+        case "#FFD23F": return "banner-gold"
+        case "#FF8A1F": return "banner-orange"
+        case "#22C55E": return "banner-green"
+        default: return "banner-red"
+        }
+    }
+
     private var banner: some View {
-        VitaBannerVideo(isPlaying: true)
+        VitaBannerVideo(isPlaying: true, resourceName: bannerResourceName)
             .frame(maxWidth: .infinity)
             .frame(height: 180)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -304,7 +315,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(name)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
                 if !description.isEmpty {
                     Text(description)
