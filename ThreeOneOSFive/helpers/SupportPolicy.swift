@@ -36,7 +36,9 @@ enum ExploitSupportPolicy {
     }
 
     static func isSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
-        if major == 16, minor >= 0, minor <= 7 {
+        // The app UI reports iOS 16+ as supported. Feature-specific operations
+        // may still be unavailable on a particular OS build.
+        if major >= 16 {
             return true
         }
 
