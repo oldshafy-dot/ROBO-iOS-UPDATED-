@@ -8,6 +8,10 @@ struct RoboIOSApp: App {
     @StateObject private var licenseSession = LicenseSessionController()
     @StateObject private var contentUpdates = ContentUpdateController()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
+    @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
+    @AppStorage(AppTheme.streamerModeStorageKey) private var streamerMode = false
+    @StateObject private var screenCaptureMonitor = ScreenCaptureMonitor()
 
     init() {
         setupLogCapture()
@@ -32,14 +36,24 @@ struct RoboIOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            LicenseGateView()
-                .environmentObject(appState)
-                .environmentObject(patchStore)
-                .environmentObject(licenseSession)
-                .environmentObject(contentUpdates)
-                .onAppear { patchStore.reload() }
-                .environment(\.appLanguage, AppLanguage.english)
-                .environment(\.locale, AppLanguage.english.locale)
+            ZStack {
+                LicenseGateView()
+                    .environmentObject(appState)
+                    .environmentObject(patchStore)
+                    .environmentObject(licenseSession)
+                    .environmentObject(contentUpdates)
+                    .onAppear { patchStore.reload() }
+                    .environment(\.appLanguage, AppLanguage(rawValue: languageCode) ?? .english)
+                    .environment(\.locale, (AppLanguage(rawValue: languageCode) ?? .english).locale)
+                    .id("\(languageCode)-\(accentHex)-\(streamerMode)")
+
+                if streamerMode && screenCaptureMonitor.isCaptured {
+                    StreamerPrivacyOverlay()
+                        .transition(.opacity)
+                        .zIndex(999)
+                }
+            }
+            .animation(.easeInOut(duration: 0.15), value: screenCaptureMonitor.isCaptured)
                 .onChange(of: licenseSession.state) { state in
                     if state == .authenticated, licenseSession.hasLiveAuthority {
                         appState.detectSupport()
@@ -57,6 +71,24 @@ struct RoboIOSApp: App {
                     }
                 }
         }
+    }
+}
+
+final class ScreenCaptureMonitor: ObservableObject {
+    @Published private(set) var isCaptured = UIScreen.main.isCaptured
+
+    init() {
+        NotificationCenter.default.addObserver(
+            forName: UIScreen.capturedDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.isCaptured = UIScreen.main.isCaptured
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
 
