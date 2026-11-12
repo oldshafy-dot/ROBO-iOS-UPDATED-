@@ -227,35 +227,15 @@ struct OnboardingView: View {
                 versionRow(icon: "checkmark.circle.fill", title: "iOS 26", value: ExploitSupportPolicy.verifiedIOS26Range, color: .green)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                        Image(systemName: "info.circle.fill").foregroundStyle(.orange)
                         Text("iOS 27.0").font(.subheadline.weight(.semibold))
                         Spacer()
                         Text(language.text("onboarding.beta")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     }
-                    ForEach(ExploitSupportPolicy.verifiedIOS27Builds, id: \.build) { v in
-                        let developerBetaText = language.text("onboarding.developer_beta", "\(v.beta)")
-                        let publicBetaText: String = {
-                            guard let publicBeta = v.publicBeta else { return "" }
-                            return " · " + language.text("onboarding.public_beta", "\(publicBeta)")
-                        }()
-                        let betaLabel = developerBetaText + publicBetaText
-                        ViewThatFits(in: .horizontal) {
-                            HStack(spacing: 12) {
-                                Text(betaLabel)
-                                Spacer()
-                                Text(v.build)
-                                    .font(.caption.monospaced().weight(.medium))
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(betaLabel)
-                                Text(v.build)
-                                    .font(.caption.monospaced().weight(.medium))
-                            }
-                        }
-                        .font(.caption.weight(.medium))
+                    Text("UI supported; target-container access is unverified on iOS 27.")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.leading, 24)
-                    }
                 }
                 .padding(12)
                 .background(
