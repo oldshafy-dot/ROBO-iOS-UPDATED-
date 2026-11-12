@@ -17,9 +17,9 @@ struct SettingsView: View {
     @State private var invalidColor = false
 
     private let presets: [(name: String, hex: String)] = [
-        ("Blue", "#147BFF"),
         ("Red", "#F53331"),
-        ("Purple", "#8B3DFF"),
+        ("Blue", "#147BFF"),
+        ("Gold", "#FFD23F"),
         ("Orange", "#FF8A1F")
     ]
 
