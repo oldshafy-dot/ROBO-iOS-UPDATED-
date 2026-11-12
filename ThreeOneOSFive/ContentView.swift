@@ -14,6 +14,8 @@ struct ContentView: View {
     @State private var pendingPatchID: UUID?
     @State private var pendingOpen: Bool?
     @State private var showNotice = true
+    @State private var showSettings = false
+    @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
     @State private var profileCountdownNow = Date()
     @State private var noticeMessage = "Stay connected and get the latest updates, news, and announcements right on your bot!"
     @State private var noticeURL = URL(string: "https://t.me/roboiosbot")!
@@ -75,6 +77,10 @@ struct ContentView: View {
         }
         .tint(AppTheme.accent)
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(appState)
+        }
         .alert(
             "ROBO iOS",
             isPresented: Binding(
@@ -147,6 +153,25 @@ struct ContentView: View {
 
     private var appPickerPage: some View {
         VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Select App")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 34, height: 34)
+                        .background(AppTheme.accent.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Settings")
+            }
+            .padding(.bottom, 10)
+
             banner
                 .padding(.bottom, 14)
             VStack(spacing: 0) {
@@ -206,6 +231,18 @@ struct ContentView: View {
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 34, height: 34)
+                        .background(AppTheme.accent.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Settings")
+
                 Button("Change") { selectedGameID = nil }
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(AppTheme.accent)
@@ -501,10 +538,10 @@ struct ContentView: View {
                 licenseSession.logout()
             } label: {
                 HStack(spacing: 12) {
-                    VitaProfileIcon(systemName: "rectangle.portrait.and.arrow.right", tint: .red)
+                    VitaProfileIcon(systemName: "rectangle.portrait.and.arrow.right", tint: AppTheme.accent)
                     Text("Sign Out")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppTheme.accent)
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 14)
@@ -631,7 +668,7 @@ struct ContentView: View {
     }
 
     private var compatibilityTint: Color {
-        appState.isSupported ? Color(red: 0.22, green: 0.86, blue: 0.48) : .red
+        appState.isSupported ? Color(red: 0.22, green: 0.86, blue: 0.48) : AppTheme.accent
     }
 
     private var appVersion: String {
