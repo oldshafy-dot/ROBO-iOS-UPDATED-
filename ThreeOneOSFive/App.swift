@@ -52,7 +52,7 @@ struct RoboIOSApp: App {
                         Spacer()
                         HStack {
                             Spacer()
-                            Text("Streamer Mode")
+                            Text("ROBO iOS")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(.primary)
                                 .padding(.horizontal, 10)
