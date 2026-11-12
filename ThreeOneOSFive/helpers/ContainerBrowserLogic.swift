@@ -261,6 +261,113 @@ struct ApplicationBundleMetadata: Equatable {
     let bundleID: String
     let displayName: String
     let version: String
+    let buildNumber: String
+}
+
+enum ApplicationMetadataSelectionError: LocalizedError {
+    case securityScopeDenied
+    case unsupportedFormat
+    case applicationBundleNotFound
+    case metadataUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .securityScopeDenied:
+            return "The selected file could not be opened with the user-authorized file access scope."
+        case .unsupportedFormat:
+            return "Select an iOS application bundle (.app) or an IPA archive."
+        case .applicationBundleNotFound:
+            return "The selected archive does not contain a Payload/*.app bundle."
+        case .metadataUnavailable:
+            return "The selected application does not contain a valid CFBundleIdentifier in Info.plist."
+        }
+    }
+}
+
+enum ApplicationMetadataSelectionReader {
+    static func read(from selectedURL: URL) throws -> ApplicationBundleMetadata {
+        let accessed = selectedURL.startAccessingSecurityScopedResource()
+        defer {
+            if accessed {
+                selectedURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        guard accessed || selectedURL.isFileURL else {
+            throw ApplicationMetadataSelectionError.securityScopeDenied
+        }
+
+        let extensionName = selectedURL.pathExtension.lowercased()
+        if extensionName == "app" {
+            guard let bundle = Bundle(url: selectedURL),
+                  let metadata = metadata(from: bundle) else {
+                throw ApplicationMetadataSelectionError.metadataUnavailable
+            }
+            return metadata
+        }
+
+        guard extensionName == "ipa" || extensionName == "zip" else {
+            throw ApplicationMetadataSelectionError.unsupportedFormat
+        }
+
+        let fileManager = FileManager.default
+        let staging = fileManager.temporaryDirectory
+            .appendingPathComponent("robo-ios-metadata-(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: staging, withIntermediateDirectories: false)
+        defer { try? fileManager.removeItem(at: staging) }
+
+        let extracted = try ZIPArchiveExtractor.extract(
+            archiveURL: selectedURL,
+            into: staging,
+            fileManager: fileManager
+        ).destinationURL
+        let payload = extracted.appendingPathComponent("Payload", isDirectory: true)
+        let candidates = try fileManager.contentsOfDirectory(
+            at: payload,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter {
+            $0.pathExtension.lowercased() == "app"
+        }
+
+        guard let appURL = candidates.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).first,
+              let bundle = Bundle(url: appURL),
+              let metadata = metadata(from: bundle) else {
+            throw ApplicationMetadataSelectionError.applicationBundleNotFound
+        }
+        return metadata
+    }
+
+    private static func metadata(from bundle: Bundle) -> ApplicationBundleMetadata? {
+        guard let rawBundleID = bundle.object(forInfoDictionaryKey: "CFBundleIdentifier") as? String else {
+            return nil
+        }
+        let bundleID = rawBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard ContainerBundleCandidateResolver.isValidBundleIdentifier(bundleID) else {
+            return nil
+        }
+
+        let displayName = AppDisplayNamePolicy.resolve(
+            bundleID: bundleID,
+            candidates: [
+                bundle.localizedInfoDictionary?["CFBundleDisplayName"] as? String,
+                bundle.localizedInfoDictionary?["CFBundleName"] as? String,
+                bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
+                bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ]
+        )
+        let version = (bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let buildNumber = (bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        return ApplicationBundleMetadata(
+            bundleID: bundleID,
+            displayName: displayName,
+            version: version,
+            buildNumber: buildNumber
+        )
+    }
 }
 
 enum ApplicationBundleMetadataReader {
@@ -293,10 +400,13 @@ enum ApplicationBundleMetadataReader {
         )
         let version = (info["CFBundleShortVersionString"] as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let buildNumber = (info["CFBundleVersion"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return ApplicationBundleMetadata(
             bundleID: bundleID,
             displayName: displayName,
-            version: version
+            version: version,
+            buildNumber: buildNumber
         )
     }
 }
