@@ -12,7 +12,6 @@ struct SettingsView: View {
     @State private var draftLanguageCode = AppLanguage.english.rawValue
     @State private var draftAccentHex = AppTheme.defaultAccentHex
     @State private var draftAppearance = AppTheme.defaultAppearance
-    @State private var customHex = AppTheme.defaultAccentHex
     @State private var showSaved = false
     @State private var invalidColor = false
 
@@ -70,7 +69,6 @@ struct SettingsView: View {
 
             draftLanguageCode = (validLanguage ?? .english).rawValue
             draftAccentHex = validAccent
-            customHex = validAccent
             draftAppearance = savedAppearance == "light" ? "light" : "dark"
         }
         .alert(language.text("settings.invalid_color"), isPresented: $invalidColor) {
@@ -124,7 +122,6 @@ struct SettingsView: View {
                 ForEach(presets, id: \.hex) { preset in
                     Button {
                         draftAccentHex = preset.hex
-                        customHex = preset.hex
                     } label: {
                         VStack(spacing: 7) {
                             Circle()
@@ -145,32 +142,6 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.plain)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(language.text("settings.custom_color"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-
-                HStack(spacing: 10) {
-                    TextField("#RRGGBB", text: $customHex)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                        .font(.system(size: 15, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .frame(height: 44)
-                        .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                    Button(language.text("settings.apply")) {
-                        applyCustomColor()
-                    }
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .frame(height: 44)
-                    .background(Color(hex: draftAccentHex), in: Capsule())
                 }
             }
 
@@ -357,7 +328,6 @@ struct SettingsView: View {
         savedLanguageCode = AppLanguage(rawValue: draftLanguageCode)?.rawValue ?? AppLanguage.english.rawValue
         savedAccentHex = normalized
         savedAppearance = draftAppearance == "light" ? "light" : "dark"
-        customHex = normalized
         showSaved = true
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
