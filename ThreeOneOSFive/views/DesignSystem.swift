@@ -473,7 +473,7 @@ struct VitaProfileRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(AppTheme.primaryText)
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
                         .font(.system(size: 12))
@@ -534,6 +534,7 @@ struct VitaSectionHeader: View {
 
 struct VitaLiquidTabBar: View {
     @Binding var selection: VitaTab
+    @Environment(\.appLanguage) private var language
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selectedTab
 
@@ -579,7 +580,7 @@ struct VitaLiquidTabBar: View {
                     .font(.system(size: 14, weight: .semibold))
                     .symbolRenderingMode(.monochrome)
                     .frame(width: 18, height: 18)
-                Text(tab.title)
+                Text(language.text(tab == .home ? "common.functions" : "tab.account"))
                     .font(.system(size: 12, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -599,7 +600,7 @@ struct VitaLiquidTabBar: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .accessibilityLabel(tab.title)
+        .accessibilityLabel(language.text(tab == .home ? "common.functions" : "tab.account"))
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
@@ -728,6 +729,8 @@ extension Color {
 }
 
 struct StreamerPrivacyOverlay: View {
+    @Environment(\.appLanguage) private var language
+
     var body: some View {
         ZStack {
             AppTheme.pageBackground.ignoresSafeArea()
@@ -736,15 +739,15 @@ struct StreamerPrivacyOverlay: View {
                 Image(systemName: "iphone.gen3")
                     .font(.system(size: 42, weight: .semibold))
                     .foregroundStyle(AppTheme.accent)
-                Text("About Robo iOS")
+                Text(language.text("license.about_title"))
                     .font(.system(size: 27, weight: .bold))
-                    .foregroundStyle(.white)
-                Text("It's an iOS app that controls functions and tools, designed by Shafay.")
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(language.text("license.about_description"))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(AppTheme.secondaryText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
-                Text("Streamer Mode")
+                Text(language.text("license.streamer_mode"))
                     .font(.system(size: 12, weight: .bold))
                     .tracking(1.2)
                     .foregroundStyle(AppTheme.accent)

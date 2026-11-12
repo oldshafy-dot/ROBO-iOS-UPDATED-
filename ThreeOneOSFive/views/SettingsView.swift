@@ -141,7 +141,7 @@ struct SettingsView: View {
                                             .foregroundStyle(.white)
                                     }
                                 }
-                            Text(preset.name)
+                            Text(language.text("settings.color_\(preset.name.lowercased())"))
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(AppTheme.secondaryText)
                         }

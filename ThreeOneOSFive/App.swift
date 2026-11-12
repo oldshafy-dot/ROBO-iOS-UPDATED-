@@ -12,6 +12,7 @@ struct RoboIOSApp: App {
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @AppStorage(AppTheme.streamerModeStorageKey) private var streamerMode = false
     @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
+    @StateObject private var captureMonitor = ScreenCaptureMonitor()
 
     init() {
         setupLogCapture()
@@ -47,22 +48,11 @@ struct RoboIOSApp: App {
                     .environment(\.locale, (AppLanguage(rawValue: languageCode) ?? .english).locale)
                     .id("\(languageCode)-\(accentHex)-\(streamerMode)-\(appearance)")
 
-                if streamerMode {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            Text("ROBO iOS")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .padding(.trailing, 12)
-                                .padding(.bottom, 12)
-                        }
-                    }
-                    .allowsHitTesting(false)
+                if streamerMode && captureMonitor.isCaptured {
+                    StreamerPrivacyOverlay()
+                        .environment(\.appLanguage, AppLanguage(rawValue: languageCode) ?? .english)
+                        .environment(\.locale, (AppLanguage(rawValue: languageCode) ?? .english).locale)
+                        .zIndex(10)
                 }
             }
             .preferredColorScheme(appearance == "light" ? .light : .dark)
@@ -88,9 +78,10 @@ struct RoboIOSApp: App {
 
 final class ScreenCaptureMonitor: ObservableObject {
     @Published private(set) var isCaptured = UIScreen.main.isCaptured
+    private var captureObserver: NSObjectProtocol?
 
     init() {
-        NotificationCenter.default.addObserver(
+        captureObserver = NotificationCenter.default.addObserver(
             forName: UIScreen.capturedDidChangeNotification,
             object: nil,
             queue: .main
@@ -100,7 +91,9 @@ final class ScreenCaptureMonitor: ObservableObject {
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        if let captureObserver {
+            NotificationCenter.default.removeObserver(captureObserver)
+        }
     }
 }
 

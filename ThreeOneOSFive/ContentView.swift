@@ -90,7 +90,7 @@ struct ContentView: View {
                 set: { if !$0 { controller.message = nil } }
             )
         ) {
-            Button("OK", role: .cancel) { controller.message = nil }
+            Button(language.text("common.ok"), role: .cancel) { controller.message = nil }
         } message: {
             Text(controller.message ?? "")
         }
@@ -170,7 +170,7 @@ struct ContentView: View {
                         .background(AppTheme.accent.opacity(0.12), in: Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Settings")
+                .accessibilityLabel(language.text("common.settings"))
             }
             .padding(.bottom, 10)
 
@@ -213,9 +213,9 @@ struct ContentView: View {
 
     private func gameSubtitle(for game: ContentGameDescriptor) -> String {
         switch game.slug {
-        case "free-fire": return "Normal"
-        case "free-fire-max": return "MAX"
-        default: return "Ready"
+        case "free-fire": return language.text("game.normal")
+        case "free-fire-max": return language.text("game.max")
+        default: return language.text("game.ready")
         }
     }
 
@@ -243,7 +243,7 @@ struct ContentView: View {
                         .background(AppTheme.accent.opacity(0.12), in: Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Settings")
+                .accessibilityLabel(language.text("common.settings"))
 
                 Button(language.text("common.change")) { selectedGameID = nil }
                     .font(.system(size: 13, weight: .semibold))
@@ -283,7 +283,7 @@ struct ContentView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "slider.horizontal.3")
                         .foregroundStyle(AppTheme.secondaryText)
-                    Text(busy ? "Checking for updates…" : empty)
+                    Text(busy ? language.text("content.checking_updates") : (empty == "No functions yet. They will appear after an update." ? language.text("content.no_functions") : empty))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(AppTheme.primaryText)
                     Spacer()
@@ -478,7 +478,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("ROBO iOS")
                         .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(AppTheme.primaryText)
                     Text(language.text("common.play_beyond_limits"))
                         .font(.system(size: 13))
                         .foregroundStyle(AppTheme.secondaryText)
@@ -494,7 +494,7 @@ struct ContentView: View {
                         .background(AppTheme.accent.opacity(0.12), in: Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Settings")
+                .accessibilityLabel(language.text("common.settings"))
             }
 
             profileSection(language.text("common.device")) {
@@ -514,7 +514,7 @@ struct ContentView: View {
                 )
                 VitaProfileRow(
                     icon: "cpu",
-                    title: "iOS Version",
+                    title: language.text("settings.ios_version"),
                     value: AppInfo.osVersion
                 )
                 VitaProfileRow(
@@ -602,7 +602,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("ROBO iOS")
                         .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(AppTheme.primaryText)
                     Text(language.text("common.play_beyond_limits").uppercased())
                         .font(.system(size: 10, weight: .semibold))
                         .tracking(1.2)
@@ -667,7 +667,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(AppTheme.primaryText)
                     Text(subtitle)
                         .font(.system(size: 12))
                         .foregroundStyle(AppTheme.secondaryText)
@@ -720,7 +720,7 @@ struct ContentView: View {
 
     private func requestOpen(_ open: Bool, item: PatchLibraryItem) {
         guard licenseSession.hasLiveAuthority && contentUpdates.hasVerifiedPolicy && contentUpdates.requiredRelease == nil else {
-            controller.message = "License required."
+            controller.message = language.text("license.required")
             return
         }
         if appState.kernelExploitApplicable && !appState.exploitStatus.isSuccess {
@@ -743,7 +743,7 @@ struct ContentView: View {
         } else if status.isFailed, pendingOpen != nil {
             pendingPatchID = nil
             pendingOpen = nil
-            controller.message = "Device preparation failed. Restart the app and try again."
+            controller.message = language.text("license.device_preparation_failed")
         }
     }
 

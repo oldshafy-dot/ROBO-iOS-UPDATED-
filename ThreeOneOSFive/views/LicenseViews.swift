@@ -57,6 +57,7 @@ struct LicenseGateView: View {
 }
 
 private struct ContentPolicyVerificationView: View {
+    @Environment(\.appLanguage) private var language
     @EnvironmentObject private var session: LicenseSessionController
     @EnvironmentObject private var updates: ContentUpdateController
     @EnvironmentObject private var store: PatchProjectStore
@@ -70,7 +71,7 @@ private struct ContentPolicyVerificationView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(AppTheme.secondaryText)
                         .multilineTextAlignment(.center)
-                    Button("Retry") {
+                    Button(language.text("license.retry")) {
                         Task {
                             await updates.checkForUpdates(
                                 session: session,
@@ -91,6 +92,8 @@ private struct ContentPolicyVerificationView: View {
 }
 
 private struct AppLaunchLoadingView: View {
+    @Environment(\.appLanguage) private var language
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -106,7 +109,7 @@ private struct AppLaunchLoadingView: View {
                     ProgressView()
                         .tint(AppTheme.accent)
                         .scaleEffect(1.15)
-                    Text("Loading..")
+                    Text(language.text("license.loading"))
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(Color.white)
                 }
@@ -115,11 +118,12 @@ private struct AppLaunchLoadingView: View {
             .padding(.horizontal, 36)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Loading")
+        .accessibilityLabel(language.text("license.loading_accessibility"))
     }
 }
 
 struct LicenseActivationView: View {
+    @Environment(\.appLanguage) private var language
     @EnvironmentObject private var session: LicenseSessionController
     @State private var licenseKey = ""
     @State private var showSettings = false
@@ -142,7 +146,7 @@ struct LicenseActivationView: View {
                             .background(AppTheme.accent.opacity(0.12), in: Circle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Settings")
+                    .accessibilityLabel(language.text("common.settings"))
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -154,13 +158,13 @@ struct LicenseActivationView: View {
                         form
                             .padding(.top, 36)
                         if let error = session.errorMessage {
-                            Label(error, systemImage: "exclamationmark.triangle.fill")
+                            Label(language.licenseMessage(error), systemImage: "exclamationmark.triangle.fill")
                                 .font(.system(size: 14))
                                 .foregroundStyle(.orange)
                                 .multilineTextAlignment(.center)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .padding(.top, 18)
-                                .accessibilityLabel("Activation error. \(error)")
+                                .accessibilityLabel(language.text("license.activation_error_accessibility", error))
                         }
                         Spacer(minLength: 36)
                     }
@@ -185,7 +189,7 @@ struct LicenseActivationView: View {
                     Image(systemName: "gearshape.fill")
                         .foregroundStyle(AppTheme.accent)
                 }
-                .accessibilityLabel("Settings")
+                .accessibilityLabel(language.text("common.settings"))
             }
         }
     }
@@ -200,7 +204,7 @@ struct LicenseActivationView: View {
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("LICENSE KEY")
+            Text(language.text("license.key_title"))
                 .font(.system(size: 11, weight: .semibold))
                 .tracking(1.4)
                 .foregroundStyle(AppTheme.tertiaryText)
@@ -211,14 +215,14 @@ struct LicenseActivationView: View {
                     .foregroundStyle(AppTheme.tertiaryText)
                     .accessibilityHidden(true)
 
-                SecureField("Enter license key", text: $licenseKey)
+                SecureField(language.text("license.key_placeholder"), text: $licenseKey)
                     .textContentType(.password)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundStyle(Color.white)
                     .disabled(session.isWorking)
-                    .accessibilityLabel("License key")
+                    .accessibilityLabel(language.text("license.key_accessibility"))
             }
             .padding(.horizontal, 18)
             .frame(height: 56)
@@ -239,7 +243,7 @@ struct LicenseActivationView: View {
                     } else {
                         Image(systemName: "key.fill")
                     }
-                    Text(session.isWorking ? "Activating…" : "Activate")
+                    Text(session.isWorking ? language.text("license.activating") : language.text("license.activate"))
                 }
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
@@ -276,7 +280,7 @@ struct LicenseActivationView: View {
                     
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("ROBO OFFICIAL on Telegram")
+                .accessibilityLabel(language.text("license.robo_official_accessibility"))
 
                 Link(destination: URL(string: "https://t.me/shafaycheatsff")!) {
                     HStack(spacing: 10) {
@@ -291,7 +295,7 @@ struct LicenseActivationView: View {
                     .background(Color(red: 0.10, green: 0.10, blue: 0.11).opacity(0.72), in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Shafay Dev on Telegram")
+                .accessibilityLabel(language.text("license.shafay_dev_accessibility"))
             }
             .padding(.top, 18)
 
@@ -300,6 +304,7 @@ struct LicenseActivationView: View {
 }
 
 struct LoginNoticeCard: View {
+    @Environment(\.appLanguage) private var language
     let message: String
     let onOpen: () -> Void
     let onClose: () -> Void
@@ -320,13 +325,13 @@ struct LoginNoticeCard: View {
                             .background(Color.white.opacity(0.08), in: Circle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel(language.text("common.close"))
                 }
-                Text("Open Bot")
+                Text(language.text("license.open_bot"))
                     .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(Color.white)
                     .frame(maxWidth: .infinity)
-                Text("for Daily Updates")
+                Text(language.text("license.daily_updates"))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(AppTheme.secondaryText)
                     .padding(.top, 6)
@@ -337,7 +342,7 @@ struct LoginNoticeCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 18)
                 Button(action: onOpen) {
-                    Text("Open Bot")
+                    Text(language.text("license.open_bot"))
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -349,7 +354,7 @@ struct LoginNoticeCard: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 22)
-                .accessibilityLabel("Open Bot")
+                .accessibilityLabel(language.text("license.open_bot_accessibility"))
             }
             .padding(22)
             .frame(maxWidth: 340)
@@ -365,36 +370,38 @@ struct LoginNoticeCard: View {
 }
 
 struct LicenseConfigurationView: View {
+    @Environment(\.appLanguage) private var language
     let message: String
 
     var body: some View {
         LicenseMessagePage<EmptyView>(
             icon: "gear.badge.xmark",
-            title: "Licensing not configured",
+            title: language.text("license.configuration_title"),
             message: message,
-            detail: "Access remains locked until a valid HTTPS server and Ed25519 key are configured."
+            detail: language.text("license.configuration_detail")
         )
     }
 }
 
 struct LicenseBlockedView: View {
+    @Environment(\.appLanguage) private var language
     @EnvironmentObject private var session: LicenseSessionController
     let message: String
 
     var body: some View {
         LicenseMessagePage(
             icon: "wifi.exclamationmark",
-            title: "License unavailable",
+            title: language.text("license.unavailable_title"),
             message: message,
-            detail: "The app is locked because the session could not be securely validated."
+            detail: language.text("license.unavailable_detail")
         ) {
-            Button("Retry") {
+            Button(language.text("license.retry")) {
                 Task { await session.retrySession() }
             }
             .buttonStyle(.borderedProminent)
             .disabled(session.isWorking)
 
-            Button("Log out", role: .destructive) {
+            Button(language.text("license.log_out"), role: .destructive) {
                 session.logout()
             }
             .buttonStyle(.bordered)
@@ -458,6 +465,7 @@ private extension LicenseMessagePage where Actions == EmptyView {
 }
 
 struct RequiredContentUpdateView: View {
+    @Environment(\.appLanguage) private var language
     @EnvironmentObject private var session: LicenseSessionController
     @EnvironmentObject private var updates: ContentUpdateController
     @EnvironmentObject private var store: PatchProjectStore
@@ -480,7 +488,7 @@ struct RequiredContentUpdateView: View {
                                 .font(.system(size: 13))
                                 .foregroundStyle(.orange)
                                 .multilineTextAlignment(.center)
-                                .accessibilityLabel("Update error. \(error)")
+                                .accessibilityLabel(language.text("license.update_error_accessibility", error))
                         }
                         installButton
                         Spacer(minLength: 48)
@@ -505,14 +513,14 @@ struct RequiredContentUpdateView: View {
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        return lines.isEmpty ? ["Update required before functions can be used."] : lines
+        return lines.isEmpty ? [language.text("license.update_default_description")] : lines
     }
 
     private var releaseNotes: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
                 VitaProfileIcon(systemName: "doc.fill")
-                Text("What's New")
+                Text(language.text("license.whats_new"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.white)
                     .accessibilityAddTraits(.isHeader)
@@ -565,7 +573,7 @@ struct RequiredContentUpdateView: View {
                 } else {
                     Image(systemName: "square.and.arrow.down")
                 }
-                Text(updates.isInstalling ? "Installing…" : "Download & Install")
+                Text(updates.isInstalling ? language.text("license.installing") : language.text("license.download_install"))
             }
             .font(.system(size: 17, weight: .semibold))
             .foregroundStyle(.white)
@@ -576,6 +584,6 @@ struct RequiredContentUpdateView: View {
         }
         .buttonStyle(.plain)
         .disabled(updates.isInstalling)
-        .accessibilityHint("Downloads and verifies the required data packages")
+        .accessibilityHint(language.text("license.update_accessibility_hint"))
     }
 }
