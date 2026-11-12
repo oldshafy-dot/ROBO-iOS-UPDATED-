@@ -2,201 +2,348 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appLanguage) private var language
     @EnvironmentObject private var appState: AppState
-    @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
+
+    @AppStorage(AppLanguage.storageKey) private var savedLanguageCode = AppLanguage.english.rawValue
+    @AppStorage(AppTheme.accentStorageKey) private var savedAccentHex = AppTheme.defaultAccentHex
+    @AppStorage(AppTheme.streamerModeStorageKey) private var savedStreamerMode = false
     @AppStorage(FeatureVisibility.cleanerStorageKey) private var cleanerEnabled = true
-    @AppStorage(FeatureVisibility.developerModeStorageKey)
-    private var developerModeEnabled = false
+    @AppStorage(FeatureVisibility.developerModeStorageKey) private var developerModeEnabled = false
+
+    @State private var draftLanguageCode = AppLanguage.english.rawValue
+    @State private var draftAccentHex = AppTheme.defaultAccentHex
+    @State private var draftStreamerMode = false
+    @State private var customHex = AppTheme.defaultAccentHex
+    @State private var showSaved = false
+    @State private var invalidColor = false
+
+    private let presets: [(name: String, hex: String)] = [
+        ("Blue", "#147BFF"),
+        ("Red", "#F53331"),
+        ("Purple", "#8B3DFF"),
+        ("Orange", "#FF8A1F")
+    ]
+
+    private var language: AppLanguage {
+        AppLanguage(rawValue: draftLanguageCode) ?? .english
+    }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    HStack(spacing: 14) {
-                        AppLogo()
+            ZStack {
+                AppTheme.pageBackground.ignoresSafeArea()
+                FallingStarsBackground()
 
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("ROBO iOS").font(.headline)
-                            Text(language.text("common.version", appVersion))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        header
+                        accentSection
+                        languageSection
+                        streamerSection
+                        existingSettingsSection
+                        deviceSection
+                        saveButton
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 30)
+                    .frame(maxWidth: 620)
+                    .frame(maxWidth: .infinity)
+                }
+                .scrollIndicators(.hidden)
+            }
+            .toolbar(.hidden, for: .navigationBar)
+        }
+        .preferredColorScheme(.dark)
+        .onAppear {
+            let validLanguage = AppLanguage(rawValue: savedLanguageCode)
+            if validLanguage == nil {
+                savedLanguageCode = AppLanguage.english.rawValue
+            }
+            let validAccent = Color.normalizedHex(savedAccentHex).flatMap {
+                Color.isAllowedAccentHex($0) ? $0 : nil
+            } ?? AppTheme.defaultAccentHex
+
+            if validAccent != savedAccentHex {
+                savedAccentHex = validAccent
+            }
+
+            draftLanguageCode = (validLanguage ?? .english).rawValue
+            draftAccentHex = validAccent
+            customHex = validAccent
+            draftStreamerMode = savedStreamerMode
+        }
+        .alert(language.text("settings.invalid_color"), isPresented: $invalidColor) {
+            Button(language.text("common.done"), role: .cancel) {}
+        } message: {
+            Text(language.text("settings.invalid_color_message"))
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(Color.white.opacity(0.07), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(language.text("common.back"))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Robo iOS")
+                    .font(.system(size: 25, weight: .bold))
+                    .foregroundStyle(.white)
+                Text(language.text("settings.subtitle"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(AppTheme.secondaryText)
+            }
+
+            Spacer()
+        }
+    }
+
+    private var accentSection: some View {
+        settingsCard(title: language.text("settings.accent_color"), icon: "paintpalette.fill") {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(Color(hex: draftAccentHex))
+                    .frame(width: 34, height: 34)
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
+                Text(draftAccentHex.uppercased())
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.white)
+                Spacer()
+            }
+
+            HStack(spacing: 10) {
+                ForEach(presets, id: \.hex) { preset in
+                    Button {
+                        draftAccentHex = preset.hex
+                        customHex = preset.hex
+                    } label: {
+                        VStack(spacing: 7) {
+                            Circle()
+                                .fill(Color(hex: preset.hex))
+                                .frame(width: 34, height: 34)
+                                .overlay {
+                                    if draftAccentHex.caseInsensitiveCompare(preset.hex) == .orderedSame {
+                                        Circle().stroke(.white, lineWidth: 2)
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+                            Text(language.text("settings.color_\(preset.name.lowercased())"))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(AppTheme.secondaryText)
                         }
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
                 }
+            }
 
-                Section(language.text("settings.language")) {
-                    Picker(language.text("settings.language"), selection: $languageCode) {
-                        ForEach(AppLanguage.allCases) { option in
-                            Text(option.displayName).tag(option.rawValue)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(language.text("settings.custom_color"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                HStack(spacing: 10) {
+                    TextField("#RRGGBB", text: $customHex)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 15, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .frame(height: 44)
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    Button(language.text("settings.apply")) {
+                        applyCustomColor()
+                    }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(Color(hex: draftAccentHex), in: Capsule())
+                }
+            }
+
+            Text(language.text("settings.no_black"))
+                .font(.system(size: 11))
+                .foregroundStyle(AppTheme.tertiaryText)
+        }
+    }
+
+    private var languageSection: some View {
+        settingsCard(title: language.text("settings.language"), icon: "globe") {
+            VStack(spacing: 0) {
+                ForEach(AppLanguage.allCases) { option in
+                    Button {
+                        draftLanguageCode = option.rawValue
+                    } label: {
+                        HStack {
+                            Text(option.displayName)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                            Spacer()
+                            if draftLanguageCode == option.rawValue {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(AppTheme.accent)
+                            }
                         }
+                        .padding(.vertical, 11)
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                }
+                    .buttonStyle(.plain)
 
-                Section {
-                    Toggle(isOn: $cleanerEnabled) {
-                        Label(language.text("tab.cleaner"), systemImage: "sparkles")
-                    }
-                    Toggle(isOn: $developerModeEnabled) {
-                        Label(
-                            language.text("settings.developer_mode"),
-                            systemImage: "hammer.fill"
-                        )
-                    }
-                } header: {
-                    Text(language.text("dashboard.features"))
-                } footer: {
-                    Text(language.text("settings.developer_mode_footer"))
-                }
-
-                if WallpaperFeatureSupportPolicy.isSupported(
-                    major: AppInfo.versionTuple.major
-                ) {
-                    Section {
-                        NavigationLink {
-                            WallpaperResetSettingsView()
-                        } label: {
-                            Label(
-                                language.text("wallpaper.reset"),
-                                systemImage: "arrow.counterclockwise"
-                            )
-                        }
-                    } header: {
-                        Text(language.text("tab.wallpapers"))
-                    } footer: {
-                        Text(language.text("wallpaper.reset_settings_footer"))
+                    if option.id != AppLanguage.allCases.last?.id {
+                        Rectangle()
+                            .fill(AppTheme.hairline)
+                            .frame(height: 0.5)
                     }
                 }
+            }
+        }
+    }
 
-                Section(language.text("common.device")) {
-                    LabeledContent(language.text("dashboard.hardware_model"), value: AppInfo.displayMachineName)
-                    LabeledContent(language.text("settings.ios_version"), value: "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
-                }
-
-                Section {
-                    HStack {
-                        Text(language.text("settings.current_version"))
-                        Spacer()
-                        Text(language.text(appState.isSupported ? "settings.supported" : "settings.unsupported"))
-                        .foregroundStyle(appState.isSupported ? Color.green : Color.red)
-                    }
-                    LabeledContent("iOS 16", value: ExploitSupportPolicy.verifiedIOS16Range)
-                    LabeledContent("iOS 17", value: ExploitSupportPolicy.verifiedIOS17Range)
-                    LabeledContent("iOS 18", value: ExploitSupportPolicy.verifiedIOS18Range)
-                    LabeledContent("iOS 26", value: ExploitSupportPolicy.verifiedIOS26Range)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("iOS 27.0")
-                            .font(.body)
-                        ForEach(ExploitSupportPolicy.verifiedIOS27Builds, id: \.build) { version in
-                            Text(versionLabel(version))
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                } header: {
-                    Text(language.text("settings.verified_versions"))
-                } footer: {
-                    Text(language.text("settings.supported_versions_footer"))
-                }
-
-                Section(language.text("settings.social_media")) {
-                    creditsRow(
-                        name: "Website",
-                        role: language.text("social.github_role"),
-                        url: "https://vitamods.com"
-                    )
-                    creditsRow(
-                        name: "Cộng Đồng IOSVN",
-                        role: language.text("social.iosvn_role"),
-                        url: "https://t.me/ioscrackvn"
-                    )
-                }
-
-                Section(language.text("settings.credits")) {
-                    creditsRow(
-                        name: "0xjohnnydev",
-                        role: language.text("credit.filzaslop"),
-                        url: "https://github.com/0xjohnnydev/FilzaSlop"
-                    )
-                    creditsRow(
-                        name: "LeminLimez",
-                        role: language.text("credit.pocket_poster"),
-                        url: "https://github.com/leminlimez/Pocket-Poster"
-                    )
-                    creditsRow(
-                        name: "CrazyMind90",
-                        role: language.text("credit.sandbox_escape"),
-                        url: "https://github.com/CrazyMind90"
-                    )
-                    creditsRow(
-                        name: "forcequitOS",
-                        role: language.text("credit.forcequit"),
-                        url: "https://github.com/forcequitOS"
-                    )
+    private var streamerSection: some View {
+        settingsCard(title: language.text("settings.streamer_mode"), icon: "record.circle") {
+            Toggle(isOn: $draftStreamerMode) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(language.text("settings.streamer_mode"))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(language.text("settings.streamer_mode_footer"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppTheme.secondaryText)
                 }
             }
             .tint(AppTheme.accent)
-            .navigationTitle(language.text("settings.title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(language.text("common.done")) { dismiss() }
-                        .fontWeight(.semibold)
+        }
+    }
+
+    private var existingSettingsSection: some View {
+        settingsCard(title: language.text("dashboard.features"), icon: "slider.horizontal.3") {
+            Toggle(isOn: $cleanerEnabled) {
+                Label(language.text("tab.cleaner"), systemImage: "sparkles")
+            }
+            .tint(AppTheme.accent)
+
+            Toggle(isOn: $developerModeEnabled) {
+                Label(language.text("settings.developer_mode"), systemImage: "hammer.fill")
+            }
+            .tint(AppTheme.accent)
+
+            if WallpaperFeatureSupportPolicy.isSupported(major: AppInfo.versionTuple.major) {
+                NavigationLink {
+                    WallpaperResetSettingsView()
+                } label: {
+                    HStack {
+                        Label(language.text("wallpaper.reset"), systemImage: "arrow.counterclockwise")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(AppTheme.tertiaryText)
+                    }
+                    .foregroundStyle(.white)
                 }
             }
         }
     }
 
-    private var appVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "AppReleaseDisplayVersion") as? String
-            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-            ?? "1.0"
-    }
-
-    private func versionLabel(
-        _ version: (beta: Int, publicBeta: Int?, build: String)
-    ) -> String {
-        if let publicBeta = version.publicBeta {
-            return language.text(
-                "settings.developer_public_beta_build",
-                Int64(version.beta),
-                Int64(publicBeta),
-                version.build
+    private var deviceSection: some View {
+        settingsCard(title: language.text("common.device"), icon: "iphone") {
+            settingRow(language.text("dashboard.hardware_model"), AppInfo.displayMachineName)
+            settingRow(language.text("settings.ios_version"), "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
+            settingRow(
+                language.text("settings.current_version"),
+                language.text(appState.isSupported ? "settings.supported" : "settings.unsupported")
             )
         }
-        return language.text(
-            "settings.developer_beta_build",
-            Int64(version.beta),
-            version.build
-        )
     }
 
-    @ViewBuilder
-    private func creditsRow(name: String, role: String, url: String) -> some View {
-        if let destination = URL(string: url) {
-            Link(destination: destination) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(name)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        Text(role)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(AppTheme.accent)
-                        .frame(width: 28, height: 28)
-                }
-                .contentShape(Rectangle())
+    private var saveButton: some View {
+        Button {
+            saveSettings()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: showSaved ? "checkmark.circle.fill" : "checkmark")
+                Text(showSaved ? language.text("settings.saved") : language.text("settings.save"))
             }
-            .accessibilityLabel(language.text("accessibility.open_profile", name))
+            .font(.system(size: 16, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(Color(hex: draftAccentHex), in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func settingsCard<Content: View>(
+        title: String,
+        icon: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 9) {
+                Image(systemName: icon)
+                    .foregroundStyle(AppTheme.accent)
+                Text(title)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                Spacer()
+            }
+            content()
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(AppTheme.hairline, lineWidth: 0.5)
+        }
+    }
+
+    private func settingRow(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(AppTheme.secondaryText)
+            Spacer()
+            Text(value)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func applyCustomColor() {
+        guard let normalized = Color.normalizedHex(customHex),
+              Color.isAllowedAccentHex(normalized) else {
+            invalidColor = true
+            return
+        }
+        draftAccentHex = normalized
+    }
+
+    private func saveSettings() {
+        guard let normalized = Color.normalizedHex(draftAccentHex),
+              Color.isAllowedAccentHex(normalized) else {
+            invalidColor = true
+            return
+        }
+
+        savedLanguageCode = AppLanguage(rawValue: draftLanguageCode)?.rawValue ?? AppLanguage.english.rawValue
+        savedAccentHex = normalized
+        savedStreamerMode = draftStreamerMode
+        customHex = normalized
+        showSaved = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+            dismiss()
         }
     }
 }
