@@ -152,10 +152,10 @@ struct SettingsView: View {
     }
 
     private var appearanceSection: some View {
-        settingsCard(title: "Appearance", icon: "circle.lefthalf.filled") {
+        settingsCard(title: language.text("settings.appearance"), icon: "circle.lefthalf.filled") {
             HStack(spacing: 10) {
-                appearanceButton(title: "Dark Mode", icon: "moon.fill", value: "dark")
-                appearanceButton(title: "Light Mode", icon: "sun.max.fill", value: "light")
+                appearanceButton(title: language.text("settings.dark_mode"), icon: "moon.fill", value: "dark")
+                appearanceButton(title: language.text("settings.light_mode"), icon: "sun.max.fill", value: "light")
             }
         }
     }
@@ -226,10 +226,10 @@ struct SettingsView: View {
                 Image(systemName: savedStreamerMode ? "record.circle.fill" : "record.circle")
                     .foregroundStyle(AppTheme.accent)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Streamer Mode")
+                    Text(language.text("settings.streamer_mode"))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(AppTheme.primaryText)
-                    Text(savedStreamerMode ? "ON" : "OFF")
+                    Text(savedStreamerMode ? language.text("settings.streamer_on") : language.text("settings.streamer_off"))
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(AppTheme.secondaryText)
                 }
