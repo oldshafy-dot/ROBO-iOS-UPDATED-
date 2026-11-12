@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    let licenseScreen: Bool
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appState: AppState
 
     @AppStorage(AppLanguage.storageKey) private var savedLanguageCode = AppLanguage.english.rawValue
     @AppStorage(AppTheme.accentStorageKey) private var savedAccentHex = AppTheme.defaultAccentHex
@@ -14,6 +14,10 @@ struct SettingsView: View {
     @State private var draftAppearance = AppTheme.defaultAppearance
     @State private var showSaved = false
     @State private var invalidColor = false
+
+    init(licenseScreen: Bool = false) {
+        self.licenseScreen = licenseScreen
+    }
 
     private let presets: [(name: String, hex: String)] = [
         ("Red", "#F53331"),
@@ -39,8 +43,10 @@ struct SettingsView: View {
                         accentSection
                         appearanceSection
                         languageSection
-                        streamerSection
-                        deviceSection
+                        if !licenseScreen {
+                            streamerSection
+                            deviceSection
+                        }
                         saveButton
                     }
                     .padding(.horizontal, 20)
@@ -247,7 +253,7 @@ struct SettingsView: View {
             settingRow(language.text("settings.ios_version"), "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
             settingRow(
                 language.text("settings.current_version"),
-                language.text(appState.isSupported ? "settings.supported" : "settings.unsupported")
+                language.text(ExploitSupportPolicy.isSupported(major: AppInfo.versionTuple.major, minor: AppInfo.versionTuple.minor, patch: AppInfo.versionTuple.patch, build: AppInfo.osBuild) ? "settings.supported" : "settings.unsupported")
             )
         }
     }
