@@ -5,7 +5,9 @@ import UIKit
 enum AppTheme {
     static let accentStorageKey = "roboAccentHex"
     static let streamerModeStorageKey = "roboStreamerMode"
+    static let appearanceStorageKey = "roboAppearance"
     static let defaultAccentHex = "#F53331"
+    static let defaultAppearance = "dark"
 
     static var accent: Color {
         Color(hex: UserDefaults.standard.string(forKey: accentStorageKey) ?? defaultAccentHex)
@@ -22,14 +24,30 @@ enum AppTheme {
             endPoint: .trailing
         )
     }
-    static let pageBackground = Color.black
-    static let consoleBackground = Color.white.opacity(0.055)
-    static let card = Color(red: 0.10, green: 0.10, blue: 0.11).opacity(0.62) // Transparent dark-grey cards
-    static let cardSelected = Color(red: 0.96, green: 0.20, blue: 0.19) // Active Red
-    static let primaryText = Color.white
-    static let secondaryText = Color(red: 0.64, green: 0.60, blue: 0.60)
-    static let tertiaryText = Color(red: 0.44, green: 0.40, blue: 0.40)
-    static let hairline = Color.white.opacity(0.05)
+    static var isLightMode: Bool {
+        UserDefaults.standard.string(forKey: appearanceStorageKey) == "light"
+    }
+
+    static var pageBackground: Color {
+        isLightMode ? Color(red: 0.965, green: 0.965, blue: 0.975) : .black
+    }
+
+    static var consoleBackground: Color {
+        isLightMode ? Color.black.opacity(0.045) : Color.white.opacity(0.055)
+    }
+
+    static var card: Color {
+        isLightMode
+            ? Color.white.opacity(0.78)
+            : Color(red: 0.10, green: 0.10, blue: 0.11).opacity(0.62)
+    }
+
+    static var cardSelected: Color { accent }
+    static var primaryText: Color { isLightMode ? Color.black.opacity(0.88) : .white }
+    static var secondaryText: Color { isLightMode ? Color.black.opacity(0.56) : Color(red: 0.64, green: 0.60, blue: 0.60) }
+    static var tertiaryText: Color { isLightMode ? Color.black.opacity(0.38) : Color(red: 0.44, green: 0.40, blue: 0.40) }
+    static var hairline: Color { isLightMode ? Color.black.opacity(0.10) : Color.white.opacity(0.05) }
+    static var controlFill: Color { isLightMode ? Color.black.opacity(0.06) : Color.white.opacity(0.07) }
     
     static let pagePadding: CGFloat = 20
     static let sectionSpacing: CGFloat = 24
@@ -70,7 +88,7 @@ struct FallingStarsBackground: View {
 
                     context.fill(
                         Path(ellipseIn: CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)),
-                        with: .color(.white.opacity(opacity))
+                        with: .color((AppTheme.isLightMode ? Color.black : Color.white).opacity(opacity * 0.72))
                     )
                 }
             }
@@ -588,9 +606,10 @@ struct VitaLiquidTabBar: View {
 
 struct VitaBannerVideo: UIViewRepresentable, Equatable {
     var isPlaying: Bool
+    var resourceName: String = "banner"
 
     func makeUIView(context: Context) -> VitaBannerPlayerView {
-        let view = VitaBannerPlayerView()
+        let view = VitaBannerPlayerView(resourceName: resourceName)
         if ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 17 {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 view.load()
@@ -611,14 +630,26 @@ struct VitaBannerVideo: UIViewRepresentable, Equatable {
 final class VitaBannerPlayerView: UIView {
     override static var layerClass: AnyClass { AVPlayerLayer.self }
 
+    private let resourceName: String
     private var playerLayerView: AVPlayerLayer { layer as! AVPlayerLayer }
+
+    init(resourceName: String) {
+        self.resourceName = resourceName
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        self.resourceName = "banner"
+        super.init(coder: coder)
+    }
     private var looper: AVPlayerLooper?
     private var player: AVQueuePlayer?
     private var wantsPlayback = false
 
     func load() {
         guard player == nil,
-              let url = Bundle.main.url(forResource: "banner", withExtension: "mov") else {
+              let url = Bundle.main.url(forResource: resourceName, withExtension: "mov")
+              ?? Bundle.main.url(forResource: "banner", withExtension: "mov") else {
             backgroundColor = .black
             return
         }
