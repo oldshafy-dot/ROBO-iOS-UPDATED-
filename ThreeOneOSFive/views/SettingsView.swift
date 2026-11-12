@@ -7,11 +7,11 @@ struct SettingsView: View {
     @AppStorage(AppLanguage.storageKey) private var savedLanguageCode = AppLanguage.english.rawValue
     @AppStorage(AppTheme.accentStorageKey) private var savedAccentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.streamerModeStorageKey) private var savedStreamerMode = false
-    @AppStorage(FeatureVisibility.developerModeStorageKey) private var developerModeEnabled = false
+    @AppStorage(AppTheme.appearanceStorageKey) private var savedAppearance = AppTheme.defaultAppearance
 
     @State private var draftLanguageCode = AppLanguage.english.rawValue
     @State private var draftAccentHex = AppTheme.defaultAccentHex
-    @State private var draftStreamerMode = false
+    @State private var draftAppearance = AppTheme.defaultAppearance
     @State private var customHex = AppTheme.defaultAccentHex
     @State private var showSaved = false
     @State private var invalidColor = false
@@ -38,6 +38,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         header
                         accentSection
+                        appearanceSection
                         languageSection
                         streamerSection
                         deviceSection
@@ -53,7 +54,7 @@ struct SettingsView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(draftAppearance == "light" ? .light : .dark)
         .onAppear {
             let validLanguage = AppLanguage(rawValue: savedLanguageCode)
             if validLanguage == nil {
@@ -70,7 +71,7 @@ struct SettingsView: View {
             draftLanguageCode = (validLanguage ?? .english).rawValue
             draftAccentHex = validAccent
             customHex = validAccent
-            draftStreamerMode = savedStreamerMode
+            draftAppearance = savedAppearance == "light" ? "light" : "dark"
         }
         .alert(language.text("settings.invalid_color"), isPresented: $invalidColor) {
             Button(language.text("common.done"), role: .cancel) {}
@@ -86,7 +87,7 @@ struct SettingsView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.primaryText)
                     .frame(width: 38, height: 38)
                     .background(Color.white.opacity(0.07), in: Circle())
             }
@@ -160,7 +161,7 @@ struct SettingsView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 12)
                         .frame(height: 44)
-                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     Button(language.text("settings.apply")) {
                         applyCustomColor()
@@ -177,6 +178,44 @@ struct SettingsView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(AppTheme.tertiaryText)
         }
+    }
+
+    private var appearanceSection: some View {
+        settingsCard(title: "Appearance", icon: "circle.lefthalf.filled") {
+            HStack(spacing: 10) {
+                appearanceButton(title: "Dark Mode", icon: "moon.fill", value: "dark")
+                appearanceButton(title: "Light Mode", icon: "sun.max.fill", value: "light")
+            }
+        }
+    }
+
+    private func appearanceButton(title: String, icon: String, value: String) -> some View {
+        Button {
+            draftAppearance = value
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                if draftAppearance == value {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(AppTheme.accent)
+                } else {
+                    Color.clear.frame(height: 13)
+                }
+            }
+            .foregroundStyle(AppTheme.primaryText)
+            .frame(maxWidth: .infinity)
+            .frame(height: 92)
+            .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(draftAppearance == value ? AppTheme.accent.opacity(0.65) : AppTheme.hairline, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var languageSection: some View {
@@ -212,17 +251,25 @@ struct SettingsView: View {
 
     private var streamerSection: some View {
         settingsCard(title: language.text("settings.streamer_mode"), icon: "record.circle") {
-            Toggle(isOn: $draftStreamerMode) {
+            HStack(spacing: 10) {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(AppTheme.accent)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(language.text("settings.streamer_mode"))
+                    Text("Streamer Mode")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Text(language.text("settings.streamer_mode_footer"))
+                        .foregroundStyle(AppTheme.primaryText)
+                    Text("Managed by the app and cannot be changed here.")
                         .font(.system(size: 11))
                         .foregroundStyle(AppTheme.secondaryText)
                 }
+                Spacer()
+                Text(savedStreamerMode ? "ON" : "OFF")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(AppTheme.controlFill, in: Capsule())
             }
-            .tint(AppTheme.accent)
         }
     }
 
@@ -271,7 +318,7 @@ struct SettingsView: View {
             content()
         }
         .padding(16)
-        .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(AppTheme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(AppTheme.hairline, lineWidth: 0.5)
@@ -309,7 +356,7 @@ struct SettingsView: View {
 
         savedLanguageCode = AppLanguage(rawValue: draftLanguageCode)?.rawValue ?? AppLanguage.english.rawValue
         savedAccentHex = normalized
-        savedStreamerMode = draftStreamerMode
+        savedAppearance = draftAppearance == "light" ? "light" : "dark"
         customHex = normalized
         showSaved = true
 
