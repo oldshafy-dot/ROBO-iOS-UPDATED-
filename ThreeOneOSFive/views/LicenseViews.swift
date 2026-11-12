@@ -122,6 +122,8 @@ private struct AppLaunchLoadingView: View {
 struct LicenseActivationView: View {
     @EnvironmentObject private var session: LicenseSessionController
     @State private var licenseKey = ""
+    @State private var showSettings = false
+    @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
 
     var body: some View {
         ZStack {
@@ -154,6 +156,20 @@ struct LicenseActivationView: View {
             }
         }
         .tint(AppTheme.accent)
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .foregroundStyle(AppTheme.accent)
+                }
+                .accessibilityLabel("Settings")
+            }
+        }
     }
 
     private var header: some View {
