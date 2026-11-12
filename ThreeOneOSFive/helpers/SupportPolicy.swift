@@ -6,19 +6,10 @@ enum ExploitSupportPolicy {
     static let verifiedIOS18Range = "18.0–18.7.1"
     static let verifiedIOS26Range = "26.0–26.6.1"
 
-    static let verifiedIOS27Builds: [(beta: Int, publicBeta: Int?, build: String)] = [
-        (1, nil, "24A5355q"),
-        (2, nil, "24A5370h"),
-        (3, 1, "24A5380h"),
-        (4, 2, "24A5390f")
-    ]
-
-    static func iOS27BetaNumber(for build: String) -> Int? {
-        verifiedIOS27Builds.first { $0.build == build }?.beta
-    }
-
-    static func iOS27PublicBetaNumber(for build: String) -> Int? {
-        verifiedIOS27Builds.first { $0.build == build }?.publicBeta
+    enum FeatureLevel: Equatable {
+        case unsupported
+        case uiOnly
+        case verifiedKernelAccess
     }
 
     static func supportsKernelExploit(major: Int, minor: Int, patch: Int) -> Bool {
@@ -35,23 +26,61 @@ enum ExploitSupportPolicy {
         return false
     }
 
-    static func isSupported(major: Int, minor: Int, patch: Int, build: String) -> Bool {
-        // The app UI reports iOS 16+ as supported. Feature-specific operations
-        // may still be unavailable on a particular OS build.
-        if major >= 16 {
-            return true
+    static func isUILaunchSupported(major: Int) -> Bool {
+        major >= 16
+    }
+
+    static func isOSRecognized(
+        major: Int,
+        minor: Int,
+        patch: Int,
+        build: String
+    ) -> Bool {
+        guard minor >= 0, patch >= 0 else { return false }
+
+        switch major {
+        case 16:
+            return minor <= 7
+        case 17:
+            return minor <= 7
+        case 18:
+            return minor < 7 || (minor == 7 && patch <= 1)
+        case 26:
+            return minor < 6 || (minor == 6 && patch <= 1)
+        case 27:
+            // iOS 27 is recognized by version/build detection, but this
+            // project does not claim verified target-container access for it.
+            return !build.isEmpty && build != "Unknown"
+        default:
+            return false
+        }
+    }
+
+    static func featureLevel(
+        major: Int,
+        minor: Int,
+        patch: Int,
+        build: String
+    ) -> FeatureLevel {
+        guard isUILaunchSupported(major: major) else {
+            return .unsupported
         }
 
         if supportsKernelExploit(major: major, minor: minor, patch: patch) {
-            return true
+            return .verifiedKernelAccess
         }
 
-        if major == 26 {
-            guard minor >= 0, patch >= 0 else { return false }
-            return minor < 6 || (minor == 6 && patch <= 1)
-        }
+        return .uiOnly
+    }
 
-        guard major == 27, minor == 0, patch == 0 else { return false }
-        return iOS27BetaNumber(for: build) != nil
+    // This is intentionally the UI/launch policy. It must not be used as
+    // proof that target-container access or any individual feature works.
+    static func isSupported(
+        major: Int,
+        minor: Int,
+        patch: Int,
+        build: String
+    ) -> Bool {
+        isUILaunchSupported(major: major)
     }
 }
