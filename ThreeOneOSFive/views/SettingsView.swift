@@ -309,15 +309,6 @@ struct SettingsView: View {
         }
     }
 
-    private func applyCustomColor() {
-        guard let normalized = Color.normalizedHex(customHex),
-              Color.isAllowedAccentHex(normalized) else {
-            invalidColor = true
-            return
-        }
-        draftAccentHex = normalized
-    }
-
     private func saveSettings() {
         guard let normalized = Color.normalizedHex(draftAccentHex),
               Color.isAllowedAccentHex(normalized) else {
