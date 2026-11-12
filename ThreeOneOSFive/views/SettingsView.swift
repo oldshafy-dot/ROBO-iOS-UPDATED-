@@ -114,7 +114,7 @@ struct SettingsView: View {
                     .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
                 Text(draftAccentHex.uppercased())
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.primaryText)
                 Spacer()
             }
 
