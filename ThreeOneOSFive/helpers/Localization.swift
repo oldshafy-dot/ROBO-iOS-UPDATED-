@@ -37,6 +37,17 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 
     private var translations: [String: [String: String]] {
         [
+            "en": [
+                "settings.title": "Robo iOS", "settings.subtitle": "Customize your app",
+                "settings.language": "Language", "settings.accent_color": "Accent Color",
+                "settings.custom_color": "Custom Color", "settings.apply": "Apply",
+                "settings.no_black": "Black cannot be used as an accent color.",
+                "settings.streamer_mode": "Streamer Mode", "settings.streamer_mode_footer": "During screen recording or streaming, normal app content is replaced by the About Robo iOS privacy screen.",
+                "settings.save": "Save Settings", "settings.saved": "Settings Saved",
+                "settings.invalid_color": "Invalid Color", "settings.invalid_color_message": "Enter a valid hex code such as #F53331. Black is not allowed.",
+                "settings.color_blue": "Blue", "settings.color_red": "Red", "settings.color_purple": "Purple", "settings.color_orange": "Orange",
+                "common.back": "Back", "common.done": "Done", "settings.supported": "Supported", "settings.unsupported": "Unsupported"
+            ],
             "pt": [
                 "settings.title": "Robo iOS", "settings.subtitle": "Personalize o aplicativo",
                 "settings.language": "Idioma", "settings.accent_color": "Cor de destaque",
