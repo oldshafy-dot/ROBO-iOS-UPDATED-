@@ -471,6 +471,17 @@ struct ContentView: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 Spacer(minLength: 0)
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 34, height: 34)
+                        .background(AppTheme.accent.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Settings")
             }
 
             profileSection("Device") {
