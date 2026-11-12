@@ -129,7 +129,24 @@ struct LicenseActivationView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             FallingStarsBackground()
-            GeometryReader { geometry in
+            VStack(spacing: 0) {
+                HStack {
+                    Spacer()
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 38, height: 38)
+                            .background(AppTheme.accent.opacity(0.12), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Settings")
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                GeometryReader { geometry in
                 ScrollView {
                     VStack(spacing: 0) {
                         Spacer(minLength: 36)
