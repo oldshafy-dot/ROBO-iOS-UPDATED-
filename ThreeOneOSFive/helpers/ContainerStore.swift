@@ -4,12 +4,49 @@ import UIKit
 
 // MARK: - Models
 
+enum ApplicationMetadataStatus: String, Equatable {
+    case verified
+    case identified
+    case unavailable
+}
+
+enum ApplicationAccessStatus: String, Equatable {
+    case available
+    case unavailable
+}
+
 struct InstalledApp: Identifiable, Hashable {
     let bundleID: String
     let name: String
     let containerPath: String
     let version: String
+    let buildNumber: String
     let icon: UIImage?
+    let metadataStatus: ApplicationMetadataStatus
+    let accessStatus: ApplicationAccessStatus
+    let accessDetail: String?
+
+    init(
+        bundleID: String,
+        name: String,
+        containerPath: String,
+        version: String,
+        buildNumber: String = "",
+        icon: UIImage? = nil,
+        metadataStatus: ApplicationMetadataStatus = .identified,
+        accessStatus: ApplicationAccessStatus = .available,
+        accessDetail: String? = nil
+    ) {
+        self.bundleID = bundleID
+        self.name = name
+        self.containerPath = containerPath
+        self.version = version
+        self.buildNumber = buildNumber
+        self.icon = icon
+        self.metadataStatus = metadataStatus
+        self.accessStatus = accessStatus
+        self.accessDetail = accessDetail
+    }
 
     var id: String { bundleID }
     var displayName: String {
@@ -227,14 +264,28 @@ enum ContainerStore {
                     missingContainer += 1
                 }
             }
-            // Skip entries we cannot browse — empty path is dropped by mergers anyway.
-            guard !containerPath.isEmpty else { continue }
+            let accessDetail: String?
+            let accessStatus: ApplicationAccessStatus
+            if containerPath.isEmpty {
+                var lookupError: NSString?
+                _ = MCMActivateContainerPath(2, bundleID, false, &lookupError)
+                accessStatus = .unavailable
+                accessDetail = lookupError.map(String.init) ?? "The application was identified, but its data container could not be opened."
+            } else {
+                accessStatus = .available
+                accessDetail = nil
+            }
+
             apps.append(InstalledApp(
                 bundleID: bundleID,
                 name: info["name"] as? String ?? "",
                 containerPath: containerPath,
                 version: info["version"] as? String ?? "",
-                icon: info["icon"] as? UIImage
+                buildNumber: info["build"] as? String ?? info["buildNumber"] as? String ?? "",
+                icon: info["icon"] as? UIImage,
+                metadataStatus: .identified,
+                accessStatus: accessStatus,
+                accessDetail: accessDetail
             ))
         }
         log("browser: LS/API apps=\(apps.count) raw=\(raw.count) missingContainer=\(missingContainer)")
@@ -266,7 +317,11 @@ enum ContainerStore {
                 ),
                 containerPath: app.containerPath,
                 version: app.version.isEmpty ? metadata.version : app.version,
-                icon: app.icon
+                buildNumber: app.buildNumber.isEmpty ? metadata.buildNumber : app.buildNumber,
+                icon: app.icon,
+                metadataStatus: .verified,
+                accessStatus: app.accessStatus,
+                accessDetail: app.accessDetail
             )
         }
     }
@@ -305,7 +360,11 @@ enum ContainerStore {
                 ),
                 containerPath: containerPath,
                 version: rawInfo["version"] as? String ?? metadata?.version ?? "",
-                icon: rawInfo["icon"] as? UIImage
+                buildNumber: metadata?.buildNumber ?? "",
+                icon: rawInfo["icon"] as? UIImage,
+                metadataStatus: metadata == nil ? .identified : .verified,
+                accessStatus: .available,
+                accessDetail: nil
             ))
         }
         log("browser: MCM resolved \(apps.count)/\(identifiers.count) app paths")
@@ -351,7 +410,11 @@ enum ContainerStore {
                 ),
                 containerPath: containerPath,
                 version: rawInfo["version"] as? String ?? metadata?.version ?? "",
-                icon: rawInfo["icon"] as? UIImage
+                buildNumber: metadata?.buildNumber ?? "",
+                icon: rawInfo["icon"] as? UIImage,
+                metadataStatus: metadata == nil ? .identified : .verified,
+                accessStatus: .available,
+                accessDetail: nil
             ))
             if apps.count <= 5 {
                 log("browser: MHA-C2 resolved \(bundleID) -> \(containerPath)")
