@@ -226,7 +226,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(game.name)
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.primaryText)
                     Text(language.text("common.functions").uppercased())
                         .font(.system(size: 11, weight: .bold))
                         .tracking(1.0)
@@ -367,7 +367,7 @@ struct ContentView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             Text(name)
                 .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(AppTheme.primaryText)
                 .lineLimit(1)
             patchToggle(item, open: open, waiting: waiting)
         }
