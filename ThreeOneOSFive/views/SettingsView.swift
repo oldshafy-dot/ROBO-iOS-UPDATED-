@@ -20,7 +20,8 @@ struct SettingsView: View {
         ("Red", "#F53331"),
         ("Blue", "#147BFF"),
         ("Gold", "#FFD23F"),
-        ("Orange", "#FF8A1F")
+        ("Orange", "#FF8A1F"),
+        ("Green", "#22C55E")
     ]
 
     private var language: AppLanguage {
