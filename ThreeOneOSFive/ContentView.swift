@@ -501,10 +501,26 @@ struct ContentView: View {
                 VitaProfileRow(
                     icon: "iphone",
                     title: language.text("common.device"),
-                    subtitle: appState.isSupported
-                        ? language.text("common.ready_to_use")
-                        : language.text("common.ios_not_supported"),
-                    badge: appState.isSupported ? language.text("common.supported") : language.text("common.unsupported"),
+                    subtitle: {
+                        switch appState.featureLevel {
+                        case .verifiedKernelAccess:
+                            return language.text("common.ready_to_use")
+                        case .uiOnly:
+                            return "UI supported; target access is not verified"
+                        case .unsupported:
+                            return language.text("common.ios_not_supported")
+                        }
+                    }(),
+                    badge: {
+                        switch appState.featureLevel {
+                        case .verifiedKernelAccess:
+                            return language.text("common.supported")
+                        case .uiOnly:
+                            return "UI Only"
+                        case .unsupported:
+                            return language.text("common.unsupported")
+                        }
+                    }(),
                     badgeColor: compatibilityTint
                 )
                 VitaProfileRow(
@@ -692,7 +708,12 @@ struct ContentView: View {
     }
 
     private var compatibilityTint: Color {
-        appState.isSupported ? Color(red: 0.22, green: 0.86, blue: 0.48) : AppTheme.accent
+        switch appState.featureLevel {
+        case .verifiedKernelAccess:
+            return Color(red: 0.22, green: 0.86, blue: 0.48)
+        case .uiOnly, .unsupported:
+            return AppTheme.accent
+        }
     }
 
     private var appVersion: String {
@@ -702,13 +723,7 @@ struct ContentView: View {
     }
 
     private var canAccessPatchedFiles: Bool {
-        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 17 {
-            return false
-        }
-        if appState.kernelExploitApplicable {
-            return appState.exploitStatus.isSuccess
-        }
-        return appState.isSupported
+        appState.targetContainerAccessAvailable
     }
 
     private func restoreLeftoverPatchesIfNeeded() {
