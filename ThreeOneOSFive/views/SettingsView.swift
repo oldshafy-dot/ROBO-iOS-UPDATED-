@@ -7,7 +7,6 @@ struct SettingsView: View {
     @AppStorage(AppLanguage.storageKey) private var savedLanguageCode = AppLanguage.english.rawValue
     @AppStorage(AppTheme.accentStorageKey) private var savedAccentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.streamerModeStorageKey) private var savedStreamerMode = false
-    @AppStorage(FeatureVisibility.cleanerStorageKey) private var cleanerEnabled = true
     @AppStorage(FeatureVisibility.developerModeStorageKey) private var developerModeEnabled = false
 
     @State private var draftLanguageCode = AppLanguage.english.rawValue
@@ -40,7 +39,6 @@ struct SettingsView: View {
                         accentSection
                         languageSection
                         streamerSection
-                        existingSettingsSection
                         deviceSection
                         saveButton
                     }
@@ -224,34 +222,6 @@ struct SettingsView: View {
                 }
             }
             .tint(AppTheme.accent)
-        }
-    }
-
-    private var existingSettingsSection: some View {
-        settingsCard(title: language.text("dashboard.features"), icon: "slider.horizontal.3") {
-            Toggle(isOn: $cleanerEnabled) {
-                Label(language.text("tab.cleaner"), systemImage: "sparkles")
-            }
-            .tint(AppTheme.accent)
-
-            Toggle(isOn: $developerModeEnabled) {
-                Label(language.text("settings.developer_mode"), systemImage: "hammer.fill")
-            }
-            .tint(AppTheme.accent)
-
-            if WallpaperFeatureSupportPolicy.isSupported(major: AppInfo.versionTuple.major) {
-                NavigationLink {
-                    WallpaperResetSettingsView()
-                } label: {
-                    HStack {
-                        Label(language.text("wallpaper.reset"), systemImage: "arrow.counterclockwise")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(AppTheme.tertiaryText)
-                    }
-                    .foregroundStyle(.white)
-                }
-            }
         }
     }
 
