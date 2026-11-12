@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct AppDataBrowserView: View {
     @Environment(\.appLanguage) private var language
@@ -13,6 +14,9 @@ struct AppDataBrowserView: View {
     @State private var errorMessage: String?
     @State private var hasLoaded = false
     @State private var workspaceURL: URL?
+    @State private var isImportingApplication = false
+    @State private var selectedMetadata: ApplicationBundleMetadata?
+    @State private var metadataImportError: String?
     @Binding private var tabSession: FilesTabSession
     let onOpenSettings: () -> Void
     let onOpenLogs: () -> Void
@@ -71,6 +75,14 @@ struct AppDataBrowserView: View {
                     .disabled(isResolving)
                     .accessibilityLabel(language.text("browser.retry"))
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        isImportingApplication = true
+                    } label: {
+                        Image(systemName: "doc.badge.gearshape")
+                    }
+                    .accessibilityLabel("Inspect application metadata")
+                }
                 AppUtilityToolbar(
                     language: language,
                     onOpenSettings: onOpenSettings,
@@ -103,6 +115,51 @@ struct AppDataBrowserView: View {
                         bundleID: destination.bundleID,
                         filesTabSession: $tabSession
                     )
+                }
+            }
+            .fileImporter(
+                isPresented: $isImportingApplication,
+                allowedContentTypes: [
+                    UTType(filenameExtension: "ipa") ?? .zip,
+                    .applicationBundle
+                ],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        do {
+                            let metadata = try ApplicationMetadataSelectionReader.read(from: url)
+                            DispatchQueue.main.async {
+                                selectedMetadata = metadata
+                                metadataImportError = nil
+                            }
+                        } catch {
+                            DispatchQueue.main.async {
+                                selectedMetadata = nil
+                                metadataImportError = error.localizedDescription
+                            }
+                        }
+                    }
+                case .failure(let error):
+                    metadataImportError = error.localizedDescription
+                }
+            }
+            .alert("Application Metadata", isPresented: Binding(
+                get: { metadataImportError != nil },
+                set: { if !$0 { metadataImportError = nil } }
+            )) {
+                Button("OK") { metadataImportError = nil }
+            } message: {
+                Text(metadataImportError ?? "")
+            }
+            .sheet(isPresented: Binding(
+                get: { selectedMetadata != nil },
+                set: { if !$0 { selectedMetadata = nil } }
+            )) {
+                if let selectedMetadata {
+                    ApplicationMetadataSheet(metadata: selectedMetadata)
                 }
             }
         }
@@ -227,14 +284,28 @@ struct AppDataBrowserView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+
+                if app.containerPath.isEmpty {
+                    Text(app.accessDetail ?? "Container access unavailable")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .lineLimit(2)
+                }
             }
 
             Spacer()
 
-            if !app.version.isEmpty {
-                Text(app.version)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 2) {
+                if !app.version.isEmpty {
+                    Text(app.version)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if !app.buildNumber.isEmpty {
+                    Text("Build (app.buildNumber)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 2)
@@ -301,13 +372,15 @@ struct AppDataBrowserView: View {
                 bundleMetadata: bundleMetadata
             )
             let filesystemApps = ContainerStore.containersFromFilesystem()
-            let baseIdentifiedApps = mcmApps + apiApps
+            let metadataOnlyApps = apiApps.filter { $0.containerPath.isEmpty }
+            let baseIdentifiedApps = mcmApps + apiApps.filter { !$0.containerPath.isEmpty }
             var result = ContainerDiscoveryMerger.merge(
                 enumerated: filesystemApps,
                 identified: baseIdentifiedApps,
                 path: { $0.containerPath }
             )
-            log("browser: merged api=\(apiApps.count), MCM=\(mcmApps.count), filesystem=\(filesystemApps.count) -> \(result.count)")
+            result.append(contentsOf: metadataOnlyApps)
+            log("browser: merged api=\(apiApps.count), MCM=\(mcmApps.count), filesystem=\(filesystemApps.count), metadataOnly=\(metadataOnlyApps.count) -> \(result.count)")
             result.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
 
             let preliminary = result.filter {
@@ -341,6 +414,7 @@ struct AppDataBrowserView: View {
                     identifier: { $0.bundleID },
                     path: { $0.containerPath }
                 )
+                progressiveResult.append(contentsOf: metadataOnlyApps)
                 progressiveResult = progressiveResult.filter {
                     ContainerPresentationPolicy.shouldShow(bundleID: $0.bundleID)
                 }
@@ -374,6 +448,7 @@ struct AppDataBrowserView: View {
                 identifier: { $0.bundleID },
                 path: { $0.containerPath }
             )
+            result.append(contentsOf: metadataOnlyApps)
             result = result.filter {
                 ContainerPresentationPolicy.shouldShow(bundleID: $0.bundleID)
             }
@@ -435,6 +510,29 @@ struct BrowserAppIcon: View {
                     resolvedIcon = icon
                 }
             }
+        }
+    }
+}
+
+
+private struct ApplicationMetadataSheet: View {
+    let metadata: ApplicationBundleMetadata
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                LabeledContent("Display Name", value: metadata.displayName)
+                LabeledContent("Bundle ID", value: metadata.bundleID)
+                LabeledContent("Version", value: metadata.version.isEmpty ? "Unavailable" : metadata.version)
+                LabeledContent("Build Number", value: metadata.buildNumber.isEmpty ? "Unavailable" : metadata.buildNumber)
+                Section {
+                    Text("Metadata was read from the selected application bundle's Info.plist. This does not grant access to the installed application's private container.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Application Metadata")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
