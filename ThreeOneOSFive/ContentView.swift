@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject private var licenseSession: LicenseSessionController
     @EnvironmentObject private var contentUpdates: ContentUpdateController
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.appLanguage) private var language
     @Environment(\.openURL) private var openURL
     @StateObject private var controller = VitaPatchController()
     @State private var tab: VitaTab = .home
@@ -155,7 +156,7 @@ struct ContentView: View {
     private var appPickerPage: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Select App")
+                Text(language.text("common.select_app"))
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(AppTheme.primaryText)
                 Spacer()
@@ -185,7 +186,7 @@ struct ContentView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(game.name)
                                     .font(.system(size: 17, weight: .bold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(AppTheme.primaryText)
                                     .lineLimit(1)
                                 Text(gameSubtitle(for: game))
                                     .font(.system(size: 13, weight: .medium))
@@ -226,7 +227,7 @@ struct ContentView: View {
                     Text(game.name)
                         .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("FUNCTIONS")
+                    Text(language.text("common.functions").uppercased())
                         .font(.system(size: 11, weight: .bold))
                         .tracking(1.0)
                         .foregroundStyle(AppTheme.accent)
@@ -244,7 +245,7 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Settings")
 
-                Button("Change") { selectedGameID = nil }
+                Button(language.text("common.change")) { selectedGameID = nil }
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(AppTheme.accent)
             }
@@ -437,7 +438,7 @@ struct ContentView: View {
             return licenseSession.profile?.expiryText ?? "—"
         }
         if expiry <= profileCountdownNow {
-            return "Expired • \(expiry.formatted(date: .abbreviated, time: .shortened))"
+            return "\(language.text("common.expired")) • \(expiry.formatted(date: .abbreviated, time: .shortened))"
         }
         return "\(remainingProfileText(until: expiry)) • \(expiry.formatted(date: .abbreviated, time: .shortened))"
     }
@@ -467,7 +468,7 @@ struct ContentView: View {
         let hours = (total % 86400) / 3600
         let minutes = (total % 3600) / 60
         let seconds = total % 60
-        return "\(days)d \(hours)h \(minutes)m \(seconds)s left"
+        return "\(days)d \(hours)h \(minutes)m \(seconds)s \(language.text("common.left"))"
     }
 
     private var profilePage: some View {
@@ -478,7 +479,7 @@ struct ContentView: View {
                     Text("ROBO iOS")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(Color.white)
-                    Text("Play Beyond Limits")
+                    Text(language.text("common.play_beyond_limits"))
                         .font(.system(size: 13))
                         .foregroundStyle(AppTheme.secondaryText)
                 }
@@ -496,19 +497,19 @@ struct ContentView: View {
                 .accessibilityLabel("Settings")
             }
 
-            profileSection("Device") {
+            profileSection(language.text("common.device")) {
                 VitaProfileRow(
                     icon: "iphone",
-                    title: "This iPhone",
+                    title: language.text("common.device"),
                     subtitle: appState.isSupported
-                        ? "Ready to use functions"
-                        : "This iOS version is not supported",
-                    badge: appState.isSupported ? "Supported" : "Unsupported",
+                        ? language.text("common.ready_to_use")
+                        : language.text("common.ios_not_supported"),
+                    badge: appState.isSupported ? language.text("common.supported") : language.text("common.unsupported"),
                     badgeColor: compatibilityTint
                 )
                 VitaProfileRow(
                     icon: "iphone",
-                    title: "Model",
+                    title: language.text("common.model"),
                     value: AppInfo.hardwareDisplayName
                 )
                 VitaProfileRow(
@@ -518,33 +519,33 @@ struct ContentView: View {
                 )
                 VitaProfileRow(
                     icon: "square.stack.3d.up.fill",
-                    title: "Build",
+                    title: language.text("common.build"),
                     value: AppInfo.osBuild
                 )
             }
 
-            profileSection("License") {
+            profileSection(language.text("common.license")) {
                 VitaProfileRow(
                     icon: "calendar",
-                    title: "Expiry",
+                    title: language.text("common.expiry"),
                     value: profileExpiryValue
                 )
             }
 
-            profileSection("App") {
+            profileSection(language.text("common.app")) {
                 VitaProfileRow(
                     icon: "info.circle.fill",
-                    title: "Name",
+                    title: language.text("common.name"),
                     value: "ROBO iOS"
                 )
                 VitaProfileRow(
                     icon: "square.stack.3d.up.fill",
-                    title: "Version",
+                    title: language.text("common.version"),
                     value: appVersion
                 )
             }
 
-            profileSection("Contact") {
+            profileSection(language.text("common.contact")) {
                 VitaProfileRow(
                     icon: "paperplane.fill",
                     title: "ROBO Mods",
@@ -562,7 +563,7 @@ struct ContentView: View {
             } label: {
                 HStack(spacing: 12) {
                     VitaProfileIcon(systemName: "rectangle.portrait.and.arrow.right", tint: AppTheme.accent)
-                    Text("Sign Out")
+                    Text(language.text("common.sign_out"))
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(AppTheme.accent)
                     Spacer(minLength: 0)
@@ -577,7 +578,7 @@ struct ContentView: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Sign Out")
+            .accessibilityLabel(language.text("common.sign_out"))
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { value in
             profileCountdownNow = value
@@ -602,7 +603,7 @@ struct ContentView: View {
                     Text("ROBO iOS")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(Color.white)
-                    Text("PLAY BEYOND LIMITS")
+                    Text(language.text("common.play_beyond_limits").uppercased())
                         .font(.system(size: 10, weight: .semibold))
                         .tracking(1.2)
                         .foregroundStyle(AppTheme.tertiaryText)
