@@ -115,6 +115,23 @@ class AppState: ObservableObject {
 
     var isSupported: Bool { unsupportedMessage == nil }
 
+    var featureLevel: ExploitSupportPolicy.FeatureLevel {
+        let v = AppInfo.versionTuple
+        return ExploitSupportPolicy.featureLevel(
+            major: v.major,
+            minor: v.minor,
+            patch: v.patch,
+            build: AppInfo.osBuild
+        )
+    }
+
+    var targetContainerAccessAvailable: Bool {
+        if kernelExploitApplicable {
+            return exploitStatus.isSuccess
+        }
+        return false
+    }
+
     func detectSupport() {
         let v = AppInfo.versionTuple
         let supported = ExploitSupportPolicy.isSupported(
@@ -141,7 +158,10 @@ class AppState: ObservableObject {
             patch: v.patch,
             build: AppInfo.osBuild
         )
-        guard applicable else { return }
+        guard applicable else {
+            log("app: UI supported; target-container access is not verified for iOS (AppInfo.osVersion) ((AppInfo.osBuild))")
+            return
+        }
 
         refreshKernelExploitStatus()
         maybeAutoRunKernelExploit()
