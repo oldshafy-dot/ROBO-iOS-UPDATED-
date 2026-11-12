@@ -11,6 +11,7 @@ struct RoboIOSApp: App {
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @AppStorage(AppTheme.streamerModeStorageKey) private var streamerMode = false
+    @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
     @StateObject private var screenCaptureMonitor = ScreenCaptureMonitor()
 
     init() {
@@ -45,7 +46,7 @@ struct RoboIOSApp: App {
                     .onAppear { patchStore.reload() }
                     .environment(\.appLanguage, AppLanguage(rawValue: languageCode) ?? .english)
                     .environment(\.locale, (AppLanguage(rawValue: languageCode) ?? .english).locale)
-                    .id("\(languageCode)-\(accentHex)-\(streamerMode)")
+                    .id("\(languageCode)-\(accentHex)-\(streamerMode)-\(appearance)")
 
                 if streamerMode && screenCaptureMonitor.isCaptured {
                     StreamerPrivacyOverlay()
@@ -53,6 +54,7 @@ struct RoboIOSApp: App {
                         .zIndex(999)
                 }
             }
+            .preferredColorScheme(appearance == "light" ? .light : .dark)
             .animation(.easeInOut(duration: 0.15), value: screenCaptureMonitor.isCaptured)
                 .onChange(of: licenseSession.state) { state in
                     if state == .authenticated, licenseSession.hasLiveAuthority {
