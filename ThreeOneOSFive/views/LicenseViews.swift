@@ -174,7 +174,7 @@ struct LicenseActivationView: View {
         }
         .tint(AppTheme.accent)
         .sheet(isPresented: $showSettings) {
-            SettingsView()
+            SettingsView(licenseScreen: true)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
