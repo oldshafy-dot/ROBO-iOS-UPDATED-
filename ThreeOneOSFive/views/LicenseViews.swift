@@ -172,6 +172,7 @@ struct LicenseActivationView: View {
                 .scrollDismissesKeyboard(.interactively)
             }
         }
+        }
         .tint(AppTheme.accent)
         .sheet(isPresented: $showSettings) {
             SettingsView(licenseScreen: true)
