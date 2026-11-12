@@ -233,10 +233,12 @@ struct OnboardingView: View {
                         Text(language.text("onboarding.beta")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     }
                     ForEach(ExploitSupportPolicy.verifiedIOS27Builds, id: \.build) { v in
-                        let betaLabel = language.text("onboarding.developer_beta", "\(v.beta)")
-                            + (v.publicBeta.map {
-                                " · " + language.text("onboarding.public_beta", "\($0)")
-                            } ?? "")
+                        let developerBetaText = language.text("onboarding.developer_beta", "\(v.beta)")
+                        let publicBetaText: String = {
+                            guard let publicBeta = v.publicBeta else { return "" }
+                            return " · " + language.text("onboarding.public_beta", "\(publicBeta)")
+                        }()
+                        let betaLabel = developerBetaText + publicBetaText
                         ViewThatFits(in: .horizontal) {
                             HStack(spacing: 12) {
                                 Text(betaLabel)
