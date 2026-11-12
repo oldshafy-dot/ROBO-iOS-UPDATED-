@@ -253,7 +253,7 @@ struct SettingsView: View {
             settingRow(language.text("settings.ios_version"), "\(AppInfo.osVersion) (\(AppInfo.osBuild))")
             settingRow(
                 language.text("settings.current_version"),
-                language.text(ExploitSupportPolicy.isSupported(major: AppInfo.versionTuple.major, minor: AppInfo.versionTuple.minor, patch: AppInfo.versionTuple.patch, build: AppInfo.osBuild) ? "settings.supported" : "settings.unsupported")
+                language.text(ExploitSupportPolicy.isSupported(major: ProcessInfo.processInfo.operatingSystemVersion.majorVersion, minor: ProcessInfo.processInfo.operatingSystemVersion.minorVersion, patch: ProcessInfo.processInfo.operatingSystemVersion.patchVersion, build: AppInfo.osBuild) ? "settings.supported" : "settings.unsupported")
             )
         }
     }
@@ -307,7 +307,7 @@ struct SettingsView: View {
             Spacer()
             Text(value)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.primaryText)
                 .multilineTextAlignment(.trailing)
         }
     }
