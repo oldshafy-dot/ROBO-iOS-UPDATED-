@@ -95,7 +95,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Robo iOS")
                     .font(.system(size: 25, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.primaryText)
                 Text(language.text("settings.subtitle"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(AppTheme.secondaryText)
@@ -135,7 +135,7 @@ struct SettingsView: View {
                                             .foregroundStyle(.white)
                                     }
                                 }
-                            Text(language.text("settings.color_\(preset.name.lowercased())"))
+                            Text(preset.name)
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(AppTheme.secondaryText)
                         }
@@ -223,23 +223,20 @@ struct SettingsView: View {
     private var streamerSection: some View {
         settingsCard(title: language.text("settings.streamer_mode"), icon: "record.circle") {
             HStack(spacing: 10) {
-                Image(systemName: "lock.fill")
+                Image(systemName: savedStreamerMode ? "record.circle.fill" : "record.circle")
                     .foregroundStyle(AppTheme.accent)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Streamer Mode")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(AppTheme.primaryText)
-                    Text("Managed by the app and cannot be changed here.")
-                        .font(.system(size: 11))
+                    Text(savedStreamerMode ? "ON" : "OFF")
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 Spacer()
-                Text(savedStreamerMode ? "ON" : "OFF")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(AppTheme.controlFill, in: Capsule())
+                Toggle("", isOn: $savedStreamerMode)
+                    .labelsHidden()
+                    .tint(AppTheme.accent)
             }
         }
     }
