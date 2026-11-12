@@ -47,6 +47,23 @@ struct RoboIOSApp: App {
                     .environment(\.locale, (AppLanguage(rawValue: languageCode) ?? .english).locale)
                     .id("\(languageCode)-\(accentHex)-\(streamerMode)-\(appearance)")
 
+                if streamerMode {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Text("Streamer Mode")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.primary)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .padding(.trailing, 12)
+                                .padding(.bottom, 12)
+                        }
+                    }
+                    .allowsHitTesting(false)
+                }
             }
             .preferredColorScheme(appearance == "light" ? .light : .dark)
                 .onChange(of: licenseSession.state) { state in
