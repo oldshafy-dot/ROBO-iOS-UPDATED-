@@ -366,11 +366,15 @@ struct ContentGameIcon: View {
 enum VitaTab: Int, CaseIterable, Hashable {
     case home
     case info
+    case cmd
+    case settings
 
     var title: String {
         switch self {
-        case .home: return "Function"
+        case .home: return "Functions"
         case .info: return "Account"
+        case .cmd: return "CMD"
+        case .settings: return "Settings"
         }
     }
 
@@ -378,6 +382,8 @@ enum VitaTab: Int, CaseIterable, Hashable {
         switch self {
         case .home: return "slider.horizontal.3"
         case .info: return "person.crop.circle"
+        case .cmd: return "apple.terminal"
+        case .settings: return "gearshape"
         }
     }
 
@@ -385,6 +391,8 @@ enum VitaTab: Int, CaseIterable, Hashable {
         switch self {
         case .home: return "slider.horizontal.3"
         case .info: return "person.crop.circle.fill"
+        case .cmd: return "apple.terminal.fill"
+        case .settings: return "gearshape.fill"
         }
     }
 }
@@ -580,7 +588,7 @@ struct VitaLiquidTabBar: View {
                     .font(.system(size: 14, weight: .semibold))
                     .symbolRenderingMode(.monochrome)
                     .frame(width: 18, height: 18)
-                Text(language.text(tab == .home ? "common.functions" : "tab.account"))
+                Text(tab.title)
                     .font(.system(size: 12, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -600,7 +608,7 @@ struct VitaLiquidTabBar: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .accessibilityLabel(language.text(tab == .home ? "common.functions" : "tab.account"))
+        .accessibilityLabel(tab.title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
