@@ -16,6 +16,7 @@ struct RoboIOSApp: App {
     @StateObject private var captureMonitor = ScreenCaptureMonitor()
 
     init() {
+        CalculatorPINStore.prepareForInstall()
         setupLogCapture()
         let iosMajor = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
         if iosMajor >= 17 {
