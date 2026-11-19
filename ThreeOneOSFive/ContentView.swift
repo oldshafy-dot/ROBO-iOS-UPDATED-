@@ -15,6 +15,8 @@ struct ContentView: View {
     @State private var pendingPatchID: UUID?
     @State private var pendingOpen: Bool?
     @State private var showNotice = true
+    @State private var showSignOutConfirmation = false
+    @State private var showChangeLicense = false
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
     @State private var profileCountdownNow = Date()
@@ -544,21 +546,26 @@ struct ContentView: View {
                 )
             }
 
-            profileSection(language.text("common.contact")) {
-                VitaProfileRow(
-                    icon: "paperplane.fill",
-                    title: "ROBO Mods",
-                    value: "@roboios"
-                )
-                VitaProfileRow(
-                    icon: "person.fill",
-                    title: "Shafay Dev",
-                    value: "@shafaycheatsff"
-                )
+            Button {
+                showChangeLicense = true
+            } label: {
+                HStack(spacing: 12) {
+                    VitaProfileIcon(systemName: "key.fill", tint: AppTheme.accent)
+                    Text("Change License")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+                .frame(minHeight: 56)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
+            .buttonStyle(.plain)
 
             Button {
-                licenseSession.logout()
+                showSignOutConfirmation = true
             } label: {
                 HStack(spacing: 12) {
                     VitaProfileIcon(systemName: "rectangle.portrait.and.arrow.right", tint: AppTheme.accent)
@@ -581,6 +588,22 @@ struct ContentView: View {
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { value in
             profileCountdownNow = value
+        }
+        .confirmationDialog(
+            "Sign out?",
+            isPresented: $showSignOutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Sign Out", role: .destructive) {
+                licenseSession.logout()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to sign out?")
+        }
+        .sheet(isPresented: $showChangeLicense) {
+            LicenseActivationView()
+                .environmentObject(licenseSession)
         }
     }
 
