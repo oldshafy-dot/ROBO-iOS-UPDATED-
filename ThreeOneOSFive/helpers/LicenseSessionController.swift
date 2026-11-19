@@ -15,6 +15,7 @@ enum LicenseGateState: Equatable {
 final class LicenseSessionController: ObservableObject {
     @Published private(set) var state: LicenseGateState = .loading
     @Published private(set) var profile: LicenseProfile?
+    @Published private(set) var displayLicenseKey: String?
     @Published private(set) var isWorking = false
     @Published private(set) var workspaceUnlocked = false
     @Published private(set) var authorityRevision = 0
@@ -39,6 +40,7 @@ final class LicenseSessionController: ObservableObject {
     private let pendingAccount = "enr.v3"
     private let legacyCredentialsAccount = "session-credentials"
     private let legacyPendingAccount = "pending-activation"
+    private let displayLicenseKeyAccount = "license-display.v1"
 
     func startIfNeeded() async {
         guard !started else { return }
@@ -68,6 +70,7 @@ final class LicenseSessionController: ObservableObject {
             }
             credentials = stored
             profile = stored.profile
+            displayLicenseKey = try? loadSecureValue(account: displayLicenseKeyAccount)
             await validateStoredSession()
         } catch let error as LicenseClientError {
             if case .unconfigured(let message) = error {
@@ -126,6 +129,7 @@ final class LicenseSessionController: ObservableObject {
 
         isWorking = true
         errorMessage = nil
+        displayLicenseKey = key
         defer { isWorking = false }
         do {
             let installationID = try identity.installationID()
@@ -260,9 +264,11 @@ final class LicenseSessionController: ObservableObject {
         VaultBox.delete(account: legacyCredentialsAccount)
         VaultBox.delete(account: pendingAccount)
         VaultBox.delete(account: legacyPendingAccount)
+        VaultBox.delete(account: displayLicenseKeyAccount)
         credentials = nil
         pendingActivation = nil
         profile = nil
+        displayLicenseKey = nil
         errorMessage = nil
         state = .signedOut
     }
@@ -442,6 +448,9 @@ final class LicenseSessionController: ObservableObject {
             throw LicenseClientError.invalidResponse
         }
         try saveSecureValue(credentials, account: credentialsAccount)
+        if let displayLicenseKey, !displayLicenseKey.isEmpty {
+            try saveSecureValue(displayLicenseKey, account: displayLicenseKeyAccount)
+        }
         VaultBox.delete(account: pendingAccount)
         VaultBox.delete(account: legacyPendingAccount)
         self.credentials = credentials
