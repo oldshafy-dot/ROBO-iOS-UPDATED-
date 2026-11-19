@@ -65,7 +65,7 @@ struct ContentView: View {
                 .allowsHitTesting(tab == .info)
                 .accessibilityHidden(tab != .info)
 
-            pageScroll(settingsPage)
+            settingsPage
                 .opacity(tab == .settings ? 1 : 0)
                 .allowsHitTesting(tab == .settings)
                 .accessibilityHidden(tab != .settings)
