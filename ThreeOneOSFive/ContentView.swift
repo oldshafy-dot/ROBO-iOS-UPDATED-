@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var showSignOutConfirmation = false
     @State private var showChangeLicense = false
     @State private var showChangeLicenseConfirmation = false
+    @State private var showLicenseKey = false
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
     @State private var profileCountdownNow = Date()
@@ -452,6 +453,50 @@ struct ContentView: View {
         return "\(days)d \(hours)h \(minutes)m \(seconds)s \(language.text("common.left"))"
     }
 
+    private var licenseKeyRow: some View {
+        HStack(spacing: 10) {
+            VitaProfileIcon(systemName: "key.fill", tint: AppTheme.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("License Key")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.secondaryText)
+                Text(showLicenseKey ? (licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey ?? "—") : maskedDisplayKey)
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(1)
+                    .textSelection(.enabled)
+            }
+            Spacer(minLength: 8)
+            Button {
+                showLicenseKey.toggle()
+            } label: {
+                Image(systemName: showLicenseKey ? "eye.slash.fill" : "eye.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(.plain)
+            Button {
+                UIPasteboard.general.string = licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey
+            } label: {
+                Image(systemName: "doc.on.doc.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled((licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey ?? "").isEmpty)
+        }
+    }
+
+    private var maskedDisplayKey: String {
+        let key = licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey ?? ""
+        guard !key.isEmpty else { return "—" }
+        return String(repeating: "•", count: max(8, min(24, key.count)))
+    }
+
     private var profilePage: some View {
         VStack(alignment: .leading, spacing: 22) {
             HStack(spacing: 14) {
@@ -511,6 +556,7 @@ struct ContentView: View {
             }
 
             profileSection(language.text("common.license")) {
+                licenseKeyRow
                 VitaProfileRow(
                     icon: "calendar",
                     title: language.text("common.expiry"),
@@ -720,8 +766,10 @@ struct ContentView: View {
         switch appState.featureLevel {
         case .verifiedKernelAccess:
             return Color(red: 0.22, green: 0.86, blue: 0.48)
-        case .uiOnly, .unsupported:
-            return AppTheme.accent
+        case .uiOnly:
+            return Color(red: 0.22, green: 0.86, blue: 0.48)
+        case .unsupported:
+            return Color(red: 0.95, green: 0.24, blue: 0.24)
         }
     }
 
