@@ -69,8 +69,7 @@ private enum CalculatorPINStore {
 }
 
 struct CalculatorLaunchGateView: View {
-    @Environment(\\.scenePhase) private var scenePhase
-    @State private var unlocked = false
+        @State private var unlocked = false
     @State private var showSetup = false
     @State private var pin = ""
     @State private var error: String?
@@ -99,7 +98,7 @@ struct CalculatorLaunchGateView: View {
                             .frame(height: 56)
                             .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                             .onChange(of: pin) { value in
-                                pin = String(value.filter(\\.isNumber).prefix(4))
+                                pin = String(value.filter(\.isNumber).prefix(4))
                             }
                         Button {
                             unlock()
@@ -351,7 +350,7 @@ struct CalculatorView: View {
             result = lhs / rhs
         }
 
-        expression = "\(format(lhs)) (symbol(for: operation)) \(format(rhs)) ="
+        expression = "\(format(lhs)) \(symbol(for: operation)) \(format(rhs)) ="
         display = format(result)
         storedValue = nil
         self.operation = nil
