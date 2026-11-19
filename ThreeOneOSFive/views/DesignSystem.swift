@@ -641,6 +641,10 @@ final class VitaBannerPlayerView: UIView {
 
     private let resourceName: String
     private var playerLayerView: AVPlayerLayer { layer as! AVPlayerLayer }
+    private static var sharedPlayer: AVQueuePlayer?
+    private static var sharedLooper: AVPlayerLooper?
+    private static var sharedResourceName: String?
+    private var wantsPlayback = false
 
     init(resourceName: String) {
         self.resourceName = resourceName
@@ -651,56 +655,54 @@ final class VitaBannerPlayerView: UIView {
         self.resourceName = "banner"
         super.init(coder: coder)
     }
-    private var looper: AVPlayerLooper?
-    private var player: AVQueuePlayer?
-    private var wantsPlayback = false
 
     func load() {
-        guard player == nil,
-              let url = Bundle.main.url(forResource: resourceName, withExtension: "mov")
-              ?? Bundle.main.url(forResource: "banner", withExtension: "mov") else {
-            backgroundColor = .black
-            return
+        if Self.sharedResourceName != resourceName {
+            guard let url = Bundle.main.url(forResource: resourceName, withExtension: "mov")
+                ?? Bundle.main.url(forResource: "banner", withExtension: "mov") else {
+                backgroundColor = .black
+                return
+            }
+
+            let item = AVPlayerItem(url: url)
+            item.preferredForwardBufferDuration = 1
+
+            let queue = AVQueuePlayer(items: [])
+            queue.automaticallyWaitsToMinimizeStalling = false
+            queue.actionAtItemEnd = .none
+            queue.isMuted = false
+            queue.volume = 1.0
+
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers])
+            try? session.setActive(true)
+
+            Self.sharedLooper = AVPlayerLooper(player: queue, templateItem: item)
+            Self.sharedPlayer = queue
+            Self.sharedResourceName = resourceName
         }
 
-        let item = AVPlayerItem(url: url)
-        item.preferredForwardBufferDuration = 1
-
-        let queue = AVQueuePlayer(items: [])
-        queue.automaticallyWaitsToMinimizeStalling = false
-        queue.actionAtItemEnd = .none
-        queue.isMuted = false
-        queue.volume = 1.0
-
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .moviePlayback, options: [.mixWithOthers])
-        try? session.setActive(true)
-
-        looper = AVPlayerLooper(player: queue, templateItem: item)
-        player = queue
-        playerLayerView.player = queue
+        playerLayerView.player = Self.sharedPlayer
         playerLayerView.videoGravity = .resizeAspectFill
         backgroundColor = .black
     }
 
     func setPlaying(_ playing: Bool) {
-        guard wantsPlayback != playing else { return }
         wantsPlayback = playing
-
+        playerLayerView.player = Self.sharedPlayer
+        guard let player = Self.sharedPlayer else { return }
+        player.isMuted = false
+        player.volume = 1.0
         if playing {
-            playerLayerView.player = player
-            player?.isMuted = false
-            player?.volume = 1.0
-            player?.play()
+            player.play()
         } else {
-            player?.pause()
+            player.pause()
         }
     }
 
     deinit {
-        player?.pause()
-        player = nil
-        looper = nil
+        // Do not pause the shared player: SwiftUI may replace this view while navigating.
+        playerLayerView.player = nil
     }
 }
 
