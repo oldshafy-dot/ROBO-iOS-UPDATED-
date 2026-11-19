@@ -453,28 +453,30 @@ struct ContentView: View {
     }
 
     private var licenseKeyRow: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
             VitaProfileIcon(systemName: "key.fill", tint: AppTheme.accent)
 
-            Button {
-                let key = licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey
-                guard let key, !key.isEmpty else { return }
-                UIPasteboard.general.string = key
-            } label: {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("License Key")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(AppTheme.secondaryText)
+            VStack(alignment: .leading, spacing: 5) {
+                Text("License Key")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.secondaryText)
+
+                Button {
+                    let key = licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey
+                    guard let key, !key.isEmpty else { return }
+                    UIPasteboard.general.string = key
+                } label: {
                     Text(showLicenseKey ? partiallyMaskedDisplayKey : maskedDisplayKey)
-                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
                         .foregroundStyle(AppTheme.primaryText)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                        .minimumScaleFactor(0.45)
+                        .allowsTightening(true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
                 showLicenseKey.toggle()
@@ -482,7 +484,7 @@ struct ContentView: View {
                 Image(systemName: showLicenseKey ? "eye.slash.fill" : "eye.fill")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(AppTheme.secondaryText)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 36, height: 36)
                     .background(Color.white.opacity(0.06), in: Circle())
             }
             .buttonStyle(.plain)
