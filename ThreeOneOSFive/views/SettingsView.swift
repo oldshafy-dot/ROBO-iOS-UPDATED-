@@ -55,11 +55,12 @@ struct SettingsView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
-                    .padding(.bottom, 30)
+                    .padding(.bottom, 120)
                     .frame(maxWidth: 620)
                     .frame(maxWidth: .infinity)
                 }
                 .scrollIndicators(.hidden)
+                .safeAreaPadding(.bottom, 90)
             }
             .toolbar(.hidden, for: .navigationBar)
         }
