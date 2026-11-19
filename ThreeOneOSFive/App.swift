@@ -38,7 +38,7 @@ struct RoboIOSApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                LicenseGateView()
+                CalculatorLaunchGateView()
                     .environmentObject(appState)
                     .environmentObject(patchStore)
                     .environmentObject(licenseSession)
