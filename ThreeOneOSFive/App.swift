@@ -49,10 +49,11 @@ struct RoboIOSApp: App {
                     .id("\(languageCode)-\(accentHex)-\(streamerMode)-\(appearance)")
 
                 if streamerMode && captureMonitor.isCaptured {
-                    StreamerPrivacyOverlay()
+                    StreamerPrivacyOverlay(snapshot: captureMonitor.snapshot)
                         .environment(\.appLanguage, AppLanguage(rawValue: languageCode) ?? .english)
                         .environment(\.locale, (AppLanguage(rawValue: languageCode) ?? .english).locale)
                         .zIndex(10)
+                        .allowsHitTesting(false)
                 }
             }
             .preferredColorScheme(appearance == "light" ? .light : .dark)
@@ -78,6 +79,7 @@ struct RoboIOSApp: App {
 
 final class ScreenCaptureMonitor: ObservableObject {
     @Published private(set) var isCaptured = UIScreen.main.isCaptured
+    @Published private(set) var snapshot: UIImage?
     private var captureObserver: NSObjectProtocol?
 
     init() {
@@ -86,7 +88,38 @@ final class ScreenCaptureMonitor: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.isCaptured = UIScreen.main.isCaptured
+            guard let self else { return }
+            let captured = UIScreen.main.isCaptured
+            self.isCaptured = captured
+
+            guard captured else {
+                self.snapshot = nil
+                return
+            }
+
+            DispatchQueue.main.async {
+                self.snapshot = self.captureWindowImage()
+            }
+        }
+    }
+
+    private func captureWindowImage() -> UIImage? {
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+              let window = scene.windows.first(where: { $0.isKeyWindow }) else {
+            return nil
+        }
+
+        let bounds = window.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return nil }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = window.screen.scale
+        format.opaque = true
+
+        return UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
+            window.drawHierarchy(in: bounds, afterScreenUpdates: false)
         }
     }
 
