@@ -12,6 +12,7 @@ struct RoboIOSApp: App {
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @AppStorage(AppTheme.streamerModeStorageKey) private var streamerMode = false
     @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
+    @AppStorage("robo.calculator.enabled") private var calculatorModeEnabled = false
     @StateObject private var captureMonitor = ScreenCaptureMonitor()
 
     init() {
@@ -38,7 +39,13 @@ struct RoboIOSApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                CalculatorLaunchGateView()
+                Group {
+                    if calculatorModeEnabled {
+                        CalculatorLaunchGateView()
+                    } else {
+                        LicenseGateView()
+                    }
+                }
                     .environmentObject(appState)
                     .environmentObject(patchStore)
                     .environmentObject(licenseSession)
