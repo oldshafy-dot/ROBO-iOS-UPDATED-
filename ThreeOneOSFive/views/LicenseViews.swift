@@ -126,7 +126,6 @@ struct LicenseActivationView: View {
     @Environment(\.appLanguage) private var language
     @EnvironmentObject private var session: LicenseSessionController
     @State private var licenseKey = ""
-    @State private var showSettings = false
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
 
     var body: some View {
@@ -134,22 +133,6 @@ struct LicenseActivationView: View {
             Color.black.ignoresSafeArea()
             FallingStarsBackground()
             VStack(spacing: 0) {
-                HStack {
-                    Spacer()
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AppTheme.accent)
-                            .frame(width: 38, height: 38)
-                            .background(AppTheme.accent.opacity(0.12), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(language.text("common.settings"))
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
                 GeometryReader { geometry in
                 ScrollView {
                     VStack(spacing: 0) {
@@ -178,20 +161,6 @@ struct LicenseActivationView: View {
         }
         }
         .tint(AppTheme.accent)
-        .sheet(isPresented: $showSettings) {
-            SettingsView(licenseScreen: true)
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .foregroundStyle(AppTheme.accent)
-                }
-                .accessibilityLabel(language.text("common.settings"))
-            }
-        }
     }
 
     private var header: some View {
@@ -274,6 +243,7 @@ struct LicenseActivationView: View {
                     .foregroundStyle(AppTheme.tertiaryText)
             }
             .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
             .padding(.top, 18)
 
         }
