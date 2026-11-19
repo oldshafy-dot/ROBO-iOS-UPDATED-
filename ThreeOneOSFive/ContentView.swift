@@ -510,7 +510,7 @@ struct ContentView: View {
             HStack(spacing: 14) {
                 AppLogo(size: 52)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("ROBO iOS")
+                    Text("ROBO X LEE")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(AppTheme.primaryText)
                     Text(language.text("common.play_beyond_limits"))
@@ -576,7 +576,7 @@ struct ContentView: View {
                 VitaProfileRow(
                     icon: "info.circle.fill",
                     title: language.text("common.name"),
-                    value: "ROBO iOS"
+                    value: "ROBO X LEE"
                 )
                 VitaProfileRow(
                     icon: "square.stack.3d.up.fill",
@@ -667,7 +667,7 @@ struct ContentView: View {
             HStack(spacing: 14) {
                 AppLogo(size: 52)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("ROBO iOS")
+                    Text("ROBO X LEE")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(AppTheme.primaryText)
                     Text(language.text("common.play_beyond_limits").uppercased())
