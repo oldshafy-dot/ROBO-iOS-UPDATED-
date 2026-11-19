@@ -15,7 +15,6 @@ struct ContentView: View {
     @State private var pendingPatchID: UUID?
     @State private var pendingOpen: Bool?
     @State private var showNotice = true
-    @State private var showSettings = false
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
     @State private var profileCountdownNow = Date()
@@ -64,6 +63,16 @@ struct ContentView: View {
                 .allowsHitTesting(tab == .info)
                 .accessibilityHidden(tab != .info)
 
+            pageScroll(cmdPage)
+                .opacity(tab == .cmd ? 1 : 0)
+                .allowsHitTesting(tab == .cmd)
+                .accessibilityHidden(tab != .cmd)
+
+            pageScroll(settingsPage)
+                .opacity(tab == .settings ? 1 : 0)
+                .allowsHitTesting(tab == .settings)
+                .accessibilityHidden(tab != .settings)
+
             if tab == .home && showNotice {
                 LoginNoticeCard(
                     message: noticeMessage,
@@ -79,10 +88,6 @@ struct ContentView: View {
         }
         .tint(AppTheme.accent)
 .preferredColorScheme(appearance == "light" ? .light : .dark)
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-                .environmentObject(appState)
-        }
         .alert(
             "ROBO iOS",
             isPresented: Binding(
@@ -160,17 +165,6 @@ struct ContentView: View {
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(AppTheme.primaryText)
                 Spacer()
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AppTheme.accent)
-                        .frame(width: 34, height: 34)
-                        .background(AppTheme.accent.opacity(0.12), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(language.text("common.settings"))
             }
             .padding(.bottom, 10)
 
@@ -233,17 +227,6 @@ struct ContentView: View {
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AppTheme.accent)
-                        .frame(width: 34, height: 34)
-                        .background(AppTheme.accent.opacity(0.12), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(language.text("common.settings"))
 
                 Button(language.text("common.change")) { selectedGameID = nil }
                     .font(.system(size: 13, weight: .semibold))
@@ -599,6 +582,17 @@ struct ContentView: View {
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { value in
             profileCountdownNow = value
         }
+    }
+
+    private var cmdPage: some View {
+        LogView()
+            .frame(maxWidth: .infinity, minHeight: 500)
+    }
+
+    private var settingsPage: some View {
+        SettingsView(embedded: true)
+            .environmentObject(appState)
+            .frame(maxWidth: .infinity)
     }
 
     private func profileSection<Content: View>(
