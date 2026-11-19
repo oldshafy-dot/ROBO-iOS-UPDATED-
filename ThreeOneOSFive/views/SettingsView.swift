@@ -15,8 +15,9 @@ struct SettingsView: View {
     @State private var showSaved = false
     @State private var invalidColor = false
 
-    init(licenseScreen: Bool = false) {
+    init(licenseScreen: Bool = false, embedded: Bool = false) {
         self.licenseScreen = licenseScreen
+        self.embedded = embedded
     }
 
     private let presets: [(name: String, hex: String)] = [
@@ -86,17 +87,19 @@ struct SettingsView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(AppTheme.primaryText)
-                    .frame(width: 38, height: 38)
-                    .background(Color.white.opacity(0.07), in: Circle())
+            if !embedded {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(AppTheme.primaryText)
+                        .frame(width: 38, height: 38)
+                        .background(Color.white.opacity(0.07), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(language.text("common.back"))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(language.text("common.back"))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Robo iOS")
