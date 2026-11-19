@@ -366,14 +366,12 @@ struct ContentGameIcon: View {
 enum VitaTab: Int, CaseIterable, Hashable {
     case home
     case info
-    case cmd
     case settings
 
     var title: String {
         switch self {
         case .home: return "Functions"
         case .info: return "Account"
-        case .cmd: return "CMD"
         case .settings: return "Settings"
         }
     }
@@ -382,7 +380,6 @@ enum VitaTab: Int, CaseIterable, Hashable {
         switch self {
         case .home: return "slider.horizontal.3"
         case .info: return "person.crop.circle"
-        case .cmd: return "apple.terminal"
         case .settings: return "gearshape"
         }
     }
@@ -391,7 +388,6 @@ enum VitaTab: Int, CaseIterable, Hashable {
         switch self {
         case .home: return "slider.horizontal.3"
         case .info: return "person.crop.circle.fill"
-        case .cmd: return "apple.terminal.fill"
         case .settings: return "gearshape.fill"
         }
     }
@@ -554,8 +550,8 @@ struct VitaLiquidTabBar: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
-        .frame(height: 62)
-        .frame(maxWidth: 360)
+        .frame(height: 64)
+        .frame(maxWidth: 390)
         .background { glassCapsule }
         .clipShape(Capsule())
         .shadow(color: .black.opacity(0.6), radius: 20, y: 10)
@@ -589,12 +585,12 @@ struct VitaLiquidTabBar: View {
                     .symbolRenderingMode(.monochrome)
                     .frame(width: 18, height: 18)
                 Text(tab.title)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: true, vertical: false)
             }
             .foregroundStyle(selected ? Color.white : AppTheme.secondaryText)
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 10)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
