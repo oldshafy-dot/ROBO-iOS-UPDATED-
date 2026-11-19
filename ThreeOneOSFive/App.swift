@@ -16,7 +16,6 @@ struct RoboIOSApp: App {
     @StateObject private var captureMonitor = ScreenCaptureMonitor()
 
     init() {
-        CalculatorPINStore.prepareForInstall()
         setupLogCapture()
         let iosMajor = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
         if iosMajor >= 17 {
@@ -41,7 +40,7 @@ struct RoboIOSApp: App {
         WindowGroup {
             ZStack {
                 Group {
-                    if calculatorModeEnabled && CalculatorPINStore.hasPIN {
+                    if calculatorModeEnabled {
                         CalculatorLaunchGateView()
                     } else {
                         LicenseGateView()
