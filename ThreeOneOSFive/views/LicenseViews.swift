@@ -164,11 +164,11 @@ struct LicenseActivationView: View {
     }
 
     private var header: some View {
-        (Text("ROBO ") + Text("iOS").foregroundColor(AppTheme.accent))
+        Text("ROBO X LEE")
             .font(.system(size: 36, weight: .bold))
             .foregroundStyle(Color.white)
             .frame(maxWidth: .infinity)
-            .accessibilityLabel("ROBO iOS")
+            .accessibilityLabel("ROBO X LEE")
     }
 
     private var form: some View {
