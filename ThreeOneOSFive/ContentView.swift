@@ -17,7 +17,6 @@ struct ContentView: View {
     @State private var showNotice = true
     @State private var showSignOutConfirmation = false
     @State private var showChangeLicense = false
-    @State private var showChangeLicenseConfirmation = false
     @State private var showLicenseKey = false
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
@@ -456,17 +455,27 @@ struct ContentView: View {
     private var licenseKeyRow: some View {
         HStack(spacing: 10) {
             VitaProfileIcon(systemName: "key.fill", tint: AppTheme.accent)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("License Key")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.secondaryText)
-                Text(showLicenseKey ? (licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey ?? "—") : maskedDisplayKey)
-                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(AppTheme.primaryText)
-                    .lineLimit(1)
-                    .textSelection(.enabled)
+
+            Button {
+                let key = licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey
+                guard let key, !key.isEmpty else { return }
+                UIPasteboard.general.string = key
+            } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("License Key")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppTheme.secondaryText)
+                    Text(showLicenseKey ? partiallyMaskedDisplayKey : maskedDisplayKey)
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(AppTheme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 8)
+            .buttonStyle(.plain)
+
             Button {
                 showLicenseKey.toggle()
             } label: {
@@ -477,24 +486,21 @@ struct ContentView: View {
                     .background(Color.white.opacity(0.06), in: Circle())
             }
             .buttonStyle(.plain)
-            Button {
-                UIPasteboard.general.string = licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey
-            } label: {
-                Image(systemName: "doc.on.doc.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(AppTheme.accent)
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.06), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled((licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey ?? "").isEmpty)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var maskedDisplayKey: String {
         let key = licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey ?? ""
         guard !key.isEmpty else { return "—" }
         return String(repeating: "•", count: max(8, min(24, key.count)))
+    }
+
+    private var partiallyMaskedDisplayKey: String {
+        let key = licenseSession.displayLicenseKey ?? licenseSession.profile?.maskedKey ?? ""
+        guard !key.isEmpty else { return "—" }
+        guard key.count > 4 else { return String(repeating: "•", count: key.count) }
+        return String(key.dropLast(4)) + String(repeating: "•", count: 4)
     }
 
     private var profilePage: some View {
@@ -578,7 +584,7 @@ struct ContentView: View {
             }
 
             Button {
-                showChangeLicenseConfirmation = true
+                licenseSession.logout()
             } label: {
                 HStack(spacing: 12) {
                     VitaProfileIcon(systemName: "key.fill", tint: AppTheme.accent)
@@ -619,18 +625,6 @@ struct ContentView: View {
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { value in
             profileCountdownNow = value
-        }
-        .confirmationDialog(
-            "Change License?",
-            isPresented: $showChangeLicenseConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Change License") {
-                showChangeLicense = true
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Are you sure you want to change your license?")
         }
         .confirmationDialog(
             "Sign out?",
