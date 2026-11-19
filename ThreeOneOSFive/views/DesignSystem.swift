@@ -739,24 +739,29 @@ struct StreamerPrivacyOverlay: View {
 
     var body: some View {
         ZStack {
-            if let snapshot {
-                Image(uiImage: snapshot)
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
-            } else {
-                AppTheme.pageBackground.ignoresSafeArea()
-                FallingStarsBackground()
-                VStack(spacing: 16) {
-                    Image(systemName: "iphone.gen3")
-                        .font(.system(size: 42, weight: .semibold))
-                        .foregroundStyle(AppTheme.accent)
-                    Text("ROBO iOS")
-                        .font(.system(size: 27, weight: .bold))
-                        .foregroundStyle(AppTheme.primaryText)
-                }
+            AppTheme.pageBackground
+                .ignoresSafeArea()
+
+            FallingStarsBackground()
+                .ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                Image(systemName: "iphone.gen3")
+                    .font(.system(size: 48, weight: .semibold))
+                    .foregroundStyle(AppTheme.accent)
+
+                Text("ROBO iOS")
+                    .font(.system(size: 30, weight: .heavy))
+                    .foregroundStyle(AppTheme.primaryText)
+
+                Text("Streamer Mode")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.secondaryText)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .ignoresSafeArea(.all)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .accessibilityHidden(true)
     }
