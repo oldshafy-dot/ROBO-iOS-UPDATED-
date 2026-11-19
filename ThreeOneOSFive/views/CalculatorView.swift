@@ -56,7 +56,7 @@ private enum CalculatorPINStore {
 
     private static func read() -> Data? {
         let query: [String: Any] = [
-            kSecClass as String,
+            kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
