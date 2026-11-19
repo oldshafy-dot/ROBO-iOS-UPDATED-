@@ -69,59 +69,17 @@ private enum CalculatorPINStore {
 }
 
 struct CalculatorLaunchGateView: View {
-        @State private var unlocked = false
+    @State private var unlocked = false
     @State private var showSetup = false
-    @State private var pin = ""
-    @State private var error: String?
+    @State private var setupError: String?
 
     var body: some View {
         Group {
             if unlocked {
                 LicenseGateView()
             } else {
-                ZStack {
-                    Color.black.ignoresSafeArea()
-                    FallingStarsBackground()
-                    VStack(spacing: 18) {
-                        Spacer()
-                        Text("ROBO iOS")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundStyle(.white)
-                        Text("Enter PIN to continue")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(AppTheme.secondaryText)
-                        SecureField("4-digit PIN", text: $pin)
-                            .keyboardType(.numberPad)
-                            .textContentType(.oneTimeCode)
-                            .multilineTextAlignment(.center)
-                            .font(.system(size: 24, weight: .semibold, design: .rounded))
-                            .frame(height: 56)
-                            .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .onChange(of: pin) { value in
-                                pin = String(value.filter(\.isNumber).prefix(4))
-                            }
-                        Button {
-                            unlock()
-                        } label: {
-                            Text("Unlock")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 54)
-                                .background(AppTheme.accent, in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(pin.count != 4)
-                        .opacity(pin.count == 4 ? 1 : 0.5)
-                        if let error {
-                            Text(error)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.orange)
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal, 28)
-                    .frame(maxWidth: 420)
+                CalculatorView {
+                    unlocked = true
                 }
             }
         }
@@ -135,25 +93,23 @@ struct CalculatorLaunchGateView: View {
                 if CalculatorPINStore.save(pin: newPIN) {
                     showSetup = false
                 } else {
-                    error = "Could not save the PIN."
+                    setupError = "Could not save the PIN."
                 }
             }
         }
-    }
-
-    private func unlock() {
-        guard CalculatorPINStore.matches(pin: pin) else {
-            error = "Incorrect PIN."
-            pin = ""
-            return
+        .alert("Calculator PIN", isPresented: Binding(
+            get: { setupError != nil },
+            set: { if !$0 { setupError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(setupError ?? "")
         }
-        error = nil
-        unlocked = true
-        pin = ""
     }
 }
 
 struct CalculatorView: View {
+    var onValidPIN: (() -> Void)? = nil
     @EnvironmentObject private var licenseSession: LicenseSessionController
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
@@ -309,6 +265,10 @@ struct CalculatorView: View {
         let isFourDigitPIN = candidate.count == 4 && candidate.allSatisfy({ $0.isNumber })
 
         if isFourDigitPIN, CalculatorPINStore.hasPIN, CalculatorPINStore.matches(pin: candidate) {
+            if let onValidPIN {
+                await MainActor.run { onValidPIN() }
+                return
+            }
             await licenseSession.renewAuthorityIfNeeded()
             if licenseSession.hasLiveAuthority {
                 await MainActor.run {
