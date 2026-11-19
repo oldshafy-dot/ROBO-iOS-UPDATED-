@@ -202,7 +202,7 @@ struct VitaTitleWordmark: View {
             }
         }
         .frame(maxWidth: maxWidth, alignment: alignment)
-        .accessibilityLabel("ROBO iOS. Play beyond limits.")
+        .accessibilityLabel("ROBO X LEE. Play beyond limits.")
     }
 }
 
