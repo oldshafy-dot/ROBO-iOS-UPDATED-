@@ -60,7 +60,6 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .scrollIndicators(.hidden)
-                .safeAreaPadding(.bottom, 90)
             }
             .toolbar(.hidden, for: .navigationBar)
         }
