@@ -735,28 +735,29 @@ extension Color {
 }
 
 struct StreamerPrivacyOverlay: View {
-    @Environment(\.appLanguage) private var language
+    let snapshot: UIImage?
 
     var body: some View {
         ZStack {
-            AppTheme.pageBackground.ignoresSafeArea()
-            FallingStarsBackground()
-            VStack(spacing: 16) {
-                Image(systemName: "iphone.gen3")
-                    .font(.system(size: 42, weight: .semibold))
-                    .foregroundStyle(AppTheme.accent)
-                Text(language.text("license.about_title"))
-                    .font(.system(size: 27, weight: .bold))
-                    .foregroundStyle(AppTheme.primaryText)
-                Text(language.text("license.about_description"))
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 360)
+            if let snapshot {
+                Image(uiImage: snapshot)
+                    .resizable()
+                    .scaledToFill()
+                    .ignoresSafeArea()
+            } else {
+                AppTheme.pageBackground.ignoresSafeArea()
+                FallingStarsBackground()
+                VStack(spacing: 16) {
+                    Image(systemName: "iphone.gen3")
+                        .font(.system(size: 42, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                    Text("ROBO iOS")
+                        .font(.system(size: 27, weight: .bold))
+                        .foregroundStyle(AppTheme.primaryText)
+                }
             }
-            .padding(28)
-            .frame(maxWidth: 430)
         }
+        .clipped()
         .accessibilityHidden(true)
     }
 }
