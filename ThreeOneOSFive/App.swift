@@ -40,7 +40,7 @@ struct RoboIOSApp: App {
         WindowGroup {
             ZStack {
                 Group {
-                    if calculatorModeEnabled {
+                    if calculatorModeEnabled && CalculatorPINStore.hasPIN {
                         CalculatorLaunchGateView()
                     } else {
                         LicenseGateView()
@@ -53,7 +53,7 @@ struct RoboIOSApp: App {
                     .onAppear { patchStore.reload() }
                     .environment(\.appLanguage, AppLanguage(rawValue: languageCode) ?? .english)
                     .environment(\.locale, (AppLanguage(rawValue: languageCode) ?? .english).locale)
-                    .id("\(languageCode)-\(accentHex)-\(streamerMode)-\(appearance)")
+                    .id("\(languageCode)-\(accentHex)-\(streamerMode)-\(appearance)-\(calculatorModeEnabled)")
 
                 if streamerMode && captureMonitor.isCaptured {
                     StreamerPrivacyOverlay(snapshot: captureMonitor.snapshot)
