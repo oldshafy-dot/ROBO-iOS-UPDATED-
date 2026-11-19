@@ -158,7 +158,6 @@ struct CalculatorView: View {
                         .foregroundStyle(AppTheme.primaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.35)
-                }
                     }
                 }
                 .padding(.horizontal, 8)
