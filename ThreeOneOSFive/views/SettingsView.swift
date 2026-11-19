@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage(AppTheme.accentStorageKey) private var savedAccentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.streamerModeStorageKey) private var savedStreamerMode = false
     @AppStorage(AppTheme.appearanceStorageKey) private var savedAppearance = AppTheme.defaultAppearance
+    @AppStorage("robo.calculator.enabled") private var calculatorModeEnabled = false
 
     @State private var draftLanguageCode = AppLanguage.english.rawValue
     @State private var draftAccentHex = AppTheme.defaultAccentHex
@@ -47,6 +48,7 @@ struct SettingsView: View {
                         languageSection
                         if !licenseScreen {
                             streamerSection
+                            calculatorSection
                             deviceSection
                         }
                         saveButton
@@ -248,6 +250,13 @@ struct SettingsView: View {
                     .labelsHidden()
                     .tint(AppTheme.accent)
             }
+        }
+    }
+
+
+    private var calculatorSection: some View {
+        settingsCard(title: "Calculator Mode", icon: "calculator.fill") {
+            CalculatorSettingsSection(enabled: $calculatorModeEnabled)
         }
     }
 
