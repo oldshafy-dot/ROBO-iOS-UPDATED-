@@ -77,8 +77,6 @@ struct CalculatorView: View {
     @State private var storedValue: Double?
     @State private var operation: Operation?
     @State private var waitingForOperand = false
-    @State private var unlocked = false
-    @State private var verifying = false
 
     enum Operation {
         case add, subtract, multiply, divide
@@ -120,14 +118,6 @@ struct CalculatorView: View {
         }
         .onAppear {
             CalculatorPINStore.prepareForInstall()
-        }
-        .alert("License Required", isPresented: Binding(
-            get: { licenseSession.errorMessage != nil && verifying },
-            set: { if !$0 { verifying = false } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Your license could not be verified.")
         }
     }
 
@@ -222,14 +212,9 @@ struct CalculatorView: View {
         let isFourDigitPIN = candidate.count == 4 && candidate.allSatisfy({ $0.isNumber })
 
         if isFourDigitPIN, CalculatorPINStore.hasPIN, CalculatorPINStore.matches(pin: candidate) {
-            verifying = true
             await licenseSession.renewAuthorityIfNeeded()
-            let valid = licenseSession.hasLiveAuthority
-            verifying = false
-
-            if valid {
+            if licenseSession.hasLiveAuthority {
                 await MainActor.run {
-                    unlocked = true
                     dismiss()
                 }
                 return
@@ -284,6 +269,7 @@ struct CalculatorView: View {
 
 struct CalculatorSettingsSection: View {
     @Binding var enabled: Bool
+    @EnvironmentObject private var licenseSession: LicenseSessionController
     @State private var showPINSheet = false
     @State private var showChangePIN = false
     @State private var showCalculator = false
@@ -366,7 +352,7 @@ struct CalculatorSettingsSection: View {
         }
         .sheet(isPresented: $showCalculator) {
             CalculatorView()
-                .environmentObject(LicenseSessionController.sharedForCalculator)
+                .environmentObject(licenseSession)
         }
         .alert("Calculator Mode", isPresented: Binding(
             get: { message != nil },
