@@ -265,38 +265,15 @@ struct LicenseActivationView: View {
             )
             .padding(.top, 10)
 
-            VStack(spacing: 10) {
-                Link(destination: URL(string: "https://t.me/roboios")!) {
-                    HStack(spacing: 10) {
-                        Text("ROBO OFFICIAL")
-                            .font(.system(size: 14, weight: .semibold))
-                        Image(systemName: "paperplane.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundStyle(Color.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color(red: 0.10, green: 0.10, blue: 0.11).opacity(0.72), in: Capsule())
-                    
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(language.text("license.robo_official_accessibility"))
-
-                Link(destination: URL(string: "https://t.me/shafaycheatsff")!) {
-                    HStack(spacing: 10) {
-                        Text("Shafay Dev")
-                            .font(.system(size: 14, weight: .semibold))
-                        Image(systemName: "message.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundStyle(Color.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color(red: 0.10, green: 0.10, blue: 0.11).opacity(0.72), in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(language.text("license.shafay_dev_accessibility"))
+            VStack(spacing: 6) {
+                Text("No key? Contact your seller")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.secondaryText)
+                Text("This external is project of Robo Modes")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(AppTheme.tertiaryText)
             }
+            .multilineTextAlignment(.center)
             .padding(.top, 18)
 
         }
