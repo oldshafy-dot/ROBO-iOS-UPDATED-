@@ -6,9 +6,29 @@ import Combine
 // MARK: - Global logger
 class AppLog: ObservableObject {
     static let shared = AppLog()
+    private static let storageKey = "robo.appLog.entries"
     @Published var entries: [String] = []
+
+    private init() {
+        entries = UserDefaults.standard.stringArray(forKey: Self.storageKey) ?? []
+    }
+
     func append(_ msg: String) {
-        DispatchQueue.main.async { self.entries.append(msg) }
+        DispatchQueue.main.async {
+            self.entries.append(msg)
+            self.persist()
+        }
+    }
+
+    func clear() {
+        entries.removeAll()
+        persist()
+    }
+
+    private func persist() {
+        let capped = Array(entries.suffix(1000))
+        if capped != entries { entries = capped }
+        UserDefaults.standard.set(capped, forKey: Self.storageKey)
     }
 }
 func log(_ msg: String) { AppLog.shared.append("[vita] \(msg)") }
