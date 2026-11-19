@@ -65,11 +65,6 @@ struct ContentView: View {
                 .allowsHitTesting(tab == .info)
                 .accessibilityHidden(tab != .info)
 
-            pageScroll(cmdPage)
-                .opacity(tab == .cmd ? 1 : 0)
-                .allowsHitTesting(tab == .cmd)
-                .accessibilityHidden(tab != .cmd)
-
             pageScroll(settingsPage)
                 .opacity(tab == .settings ? 1 : 0)
                 .allowsHitTesting(tab == .settings)
@@ -480,7 +475,7 @@ struct ContentView: View {
                         case .verifiedKernelAccess:
                             return language.text("common.ready_to_use")
                         case .uiOnly:
-                            return "UI supported; target access is not verified"
+                            return "This device is supported"
                         case .unsupported:
                             return language.text("common.ios_not_supported")
                         }
@@ -490,7 +485,7 @@ struct ContentView: View {
                         case .verifiedKernelAccess:
                             return language.text("common.supported")
                         case .uiOnly:
-                            return "UI Only"
+                            return language.text("common.supported")
                         case .unsupported:
                             return language.text("common.unsupported")
                         }
@@ -518,7 +513,7 @@ struct ContentView: View {
                 VitaProfileRow(
                     icon: "calendar",
                     title: language.text("common.expiry"),
-                    value: profileExpiryValue
+                    value: profileExpiryValue.isEmpty ? "—" : profileExpiryValue
                 )
             }
 
@@ -594,11 +589,6 @@ struct ContentView: View {
             LicenseActivationView()
                 .environmentObject(licenseSession)
         }
-    }
-
-    private var cmdPage: some View {
-        LogView()
-            .frame(maxWidth: .infinity, minHeight: 500)
     }
 
     private var settingsPage: some View {
