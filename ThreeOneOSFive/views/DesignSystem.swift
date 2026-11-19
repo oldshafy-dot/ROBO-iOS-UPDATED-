@@ -750,13 +750,10 @@ struct StreamerPrivacyOverlay: View {
                     .font(.system(size: 48, weight: .semibold))
                     .foregroundStyle(AppTheme.accent)
 
-                Text("ROBO iOS")
+                Text("ROBO X LEE")
                     .font(.system(size: 30, weight: .heavy))
                     .foregroundStyle(AppTheme.primaryText)
 
-                Text("Streamer Mode")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.secondaryText)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
