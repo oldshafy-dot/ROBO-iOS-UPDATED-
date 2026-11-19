@@ -68,6 +68,92 @@ private enum CalculatorPINStore {
     }
 }
 
+struct CalculatorLaunchGateView: View {
+    @Environment(\\.scenePhase) private var scenePhase
+    @State private var unlocked = false
+    @State private var showSetup = false
+    @State private var pin = ""
+    @State private var error: String?
+
+    var body: some View {
+        Group {
+            if unlocked {
+                LicenseGateView()
+            } else {
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    FallingStarsBackground()
+                    VStack(spacing: 18) {
+                        Spacer()
+                        Text("ROBO iOS")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text("Enter PIN to continue")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(AppTheme.secondaryText)
+                        SecureField("4-digit PIN", text: $pin)
+                            .keyboardType(.numberPad)
+                            .textContentType(.oneTimeCode)
+                            .multilineTextAlignment(.center)
+                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                            .frame(height: 56)
+                            .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .onChange(of: pin) { value in
+                                pin = String(value.filter(\\.isNumber).prefix(4))
+                            }
+                        Button {
+                            unlock()
+                        } label: {
+                            Text("Unlock")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 54)
+                                .background(AppTheme.accent, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(pin.count != 4)
+                        .opacity(pin.count == 4 ? 1 : 0.5)
+                        if let error {
+                            Text(error)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.orange)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 28)
+                    .frame(maxWidth: 420)
+                }
+            }
+        }
+        .task {
+            if !CalculatorPINStore.hasPIN {
+                showSetup = true
+            }
+        }
+        .sheet(isPresented: $showSetup) {
+            CalculatorPINSetupView(title: "Set Calculator PIN") { newPIN in
+                if CalculatorPINStore.save(pin: newPIN) {
+                    showSetup = false
+                } else {
+                    error = "Could not save the PIN."
+                }
+            }
+        }
+    }
+
+    private func unlock() {
+        guard CalculatorPINStore.matches(pin: pin) else {
+            error = "Incorrect PIN."
+            pin = ""
+            return
+        }
+        error = nil
+        unlocked = true
+        pin = ""
+    }
+}
+
 struct CalculatorView: View {
     @EnvironmentObject private var licenseSession: LicenseSessionController
     @Environment(\.dismiss) private var dismiss
@@ -77,6 +163,7 @@ struct CalculatorView: View {
     @State private var storedValue: Double?
     @State private var operation: Operation?
     @State private var waitingForOperand = false
+    @State private var expression = ""
 
     enum Operation {
         case add, subtract, multiply, divide
@@ -102,13 +189,22 @@ struct CalculatorView: View {
 
                 Spacer(minLength: 10)
 
-                HStack {
-                    Spacer()
-                    Text(display)
+                VStack(alignment: .trailing, spacing: 4) {
+                    if !expression.isEmpty {
+                        Text(expression)
+                            .font(.system(size: 18, weight: .medium, design: .rounded))
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .lineLimit(1)
+                    }
+                    HStack {
+                        Spacer()
+                        Text(display)
                         .font(.system(size: 54, weight: .light, design: .rounded))
                         .foregroundStyle(AppTheme.primaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.35)
+                }
+                    }
                 }
                 .padding(.horizontal, 8)
 
@@ -182,6 +278,7 @@ struct CalculatorView: View {
             storedValue = nil
             operation = nil
             waitingForOperand = false
+            expression = ""
 
         case "±":
             if let value = Double(display) {
@@ -197,6 +294,7 @@ struct CalculatorView: View {
             guard let value = Double(display) else { return }
             storedValue = value
             operation = key == "+" ? .add : key == "−" ? .subtract : key == "×" ? .multiply : .divide
+            expression = "\(display) \(key)"
             waitingForOperand = true
 
         case "=":
@@ -253,10 +351,20 @@ struct CalculatorView: View {
             result = lhs / rhs
         }
 
+        expression = "\(format(lhs)) (symbol(for: operation)) \(format(rhs)) ="
         display = format(result)
         storedValue = nil
         self.operation = nil
         waitingForOperand = true
+    }
+
+    private func symbol(for operation: Operation) -> String {
+        switch operation {
+        case .add: return "+"
+        case .subtract: return "−"
+        case .multiply: return "×"
+        case .divide: return "÷"
+        }
     }
 
     private func format(_ value: Double) -> String {
