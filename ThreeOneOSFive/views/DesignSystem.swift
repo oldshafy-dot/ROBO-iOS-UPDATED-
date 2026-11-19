@@ -753,10 +753,6 @@ struct StreamerPrivacyOverlay: View {
                     .foregroundStyle(AppTheme.secondaryText)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
-                Text(language.text("license.streamer_mode"))
-                    .font(.system(size: 12, weight: .bold))
-                    .tracking(1.2)
-                    .foregroundStyle(AppTheme.accent)
             }
             .padding(28)
             .frame(maxWidth: 430)
