@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var showNotice = true
     @State private var showSignOutConfirmation = false
     @State private var showChangeLicense = false
+    @State private var showChangeLicenseConfirmation = false
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
     @State private var profileCountdownNow = Date()
@@ -531,7 +532,7 @@ struct ContentView: View {
             }
 
             Button {
-                showChangeLicense = true
+                showChangeLicenseConfirmation = true
             } label: {
                 HStack(spacing: 12) {
                     VitaProfileIcon(systemName: "key.fill", tint: AppTheme.accent)
@@ -572,6 +573,18 @@ struct ContentView: View {
         }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { value in
             profileCountdownNow = value
+        }
+        .confirmationDialog(
+            "Change License?",
+            isPresented: $showChangeLicenseConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Change License") {
+                showChangeLicense = true
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to change your license?")
         }
         .confirmationDialog(
             "Sign out?",
