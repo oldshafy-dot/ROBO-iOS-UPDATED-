@@ -166,9 +166,6 @@ struct CalculatorView: View {
             }
             .padding(20)
         }
-        .onAppear {
-            CalculatorPINStore.prepareForInstall()
-        }
     }
 
     private var keypad: some View {
@@ -429,8 +426,9 @@ struct CalculatorSettingsSection: View {
             Text(message ?? "")
         }
         .onAppear {
-            CalculatorPINStore.prepareForInstall()
-            enabled = CalculatorPINStore.hasPIN && enabled
+            if !CalculatorPINStore.hasPIN {
+                enabled = false
+            }
         }
     }
 }
