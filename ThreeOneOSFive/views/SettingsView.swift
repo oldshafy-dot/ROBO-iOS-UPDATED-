@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     let licenseScreen: Bool
+    let embedded: Bool
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage(AppLanguage.storageKey) private var savedLanguageCode = AppLanguage.english.rawValue
