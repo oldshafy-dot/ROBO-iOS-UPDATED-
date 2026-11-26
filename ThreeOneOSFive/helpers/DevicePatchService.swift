@@ -100,11 +100,21 @@ enum DevicePatchService {
                 identifier: target.identifier
             ),
             ContainerStore.isPatchContainerPath(path, kind: target.kind) else {
+                PatchAccessDiagnostics.recordFailure(
+                    kind: target.kind,
+                    identifier: target.identifier
+                )
                 throw PatchPackageError.targetAppUnavailable(target.identifier)
             }
-            roots[target.identifier] = PatchPathValidator.canonicalFileURL(
+            let canonical = PatchPathValidator.canonicalFileURL(
                 URL(fileURLWithPath: path, isDirectory: true)
             )
+            PatchAccessDiagnostics.recordSuccess(
+                kind: target.kind,
+                identifier: target.identifier,
+                path: canonical.path
+            )
+            roots[target.identifier] = canonical
         }
         return try operation(roots)
     }
