@@ -1,0 +1,70 @@
+//
+//  worse_query.h
+//  3106
+//
+//  worse_query sandbox escape by Taj C (forcequitOS):
+//  https://github.com/forcequitOS/worse_query, GPL-3.0-or-later.
+//  Product-level safety helpers adapted from WQ Files by Christoph Kolbicz:
+//  https://github.com/kolbicz/WQFiles, GPL-3.0-or-later.
+//
+
+#ifndef worse_query_h
+#define worse_query_h
+
+#import <Foundation/Foundation.h>
+
+NS_ASSUME_NONNULL_BEGIN
+
+/// YES when the process was signed with an App Group and worse_query can work.
+BOOL worse_query_available(void);
+
+/// The App Group the signer actually gave us, or nil.
+NSString *_Nullable worse_query_app_group(void);
+
+/// Asks for a sandbox extension covering `path`. Returns a handle >= 0 on
+/// success, or a negative error code. Tokens are cached (LRU, 192 entries) so
+/// repeated grants for the same container do not re-run the query.
+int64_t worse_query_grant(const char *path);
+
+/// Variant with an explicit write-requirement flag (spec
+/// 02-00-ios27-grant-hardening, D-03.3). `require_write = 0` behaves exactly
+/// like `worse_query_grant` (read verification only); `require_write = 1`
+/// additionally probes that the issued token actually allows creating a file
+/// in the target, so a read-only token no longer fakes a successful grant.
+/// Until the T-005 hardening lands this forwards to the read-only path.
+int64_t worse_query_grant_ex(const char *path, int require_write);
+
+/// Releases a cached token. Handles that are still cached are kept alive until
+/// eviction; uncached handles are released immediately.
+void worse_query_release(int64_t handle);
+
+/// Drops every cached token.
+void worse_query_forget_all(void);
+
+/// Heals an interrupted Library/Caches swap. Safe to call on every launch.
+/// If recovery itself fails (a link or mismatched inode left by another
+/// worse_query app sharing the App Group), this repairs the cache once and
+/// reports whether the folder is usable again.
+BOOL worse_query_recover(void);
+
+/// Puts the App Group's Library/Caches back to a plain folder whatever state
+/// it is in. Nothing is deleted: anything in the way is renamed aside.
+/// Exposed for Settings → Reset Access Cache.
+BOOL worse_query_reset_access_cache(void);
+
+/// Drops the cached path↔identifier map (call after a repair, so the next
+/// identity lookup re-queries containermanagerd instead of serving stale
+/// results).
+void worse_query_invalidate_caches(void);
+
+/// Container-manager path → identifier map. Used on iOS 27.2, where the
+/// container identifier xattr and the root-owned metadata plist are no longer
+/// readable. Cached for 60 seconds.
+NSDictionary<NSString *, NSString *> *worse_query_path_identifiers(void);
+
+/// The reverse of the above: identifier (bundle id) → canonical container path.
+NSDictionary<NSString *, NSString *> *worse_query_identifier_paths(void);
+
+NS_ASSUME_NONNULL_END
+
+#endif /* worse_query_h */
