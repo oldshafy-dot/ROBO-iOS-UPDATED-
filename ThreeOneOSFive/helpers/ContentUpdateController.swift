@@ -241,7 +241,7 @@ final class ContentUpdateController: ObservableObject {
         } catch {
             throw LicenseClientError.packageInvalid(
                 option.passwordRequired == true
-                    ? "(option.name) (password or file is invalid)"
+                    ? "\\(option.name) (password or file is invalid)"
                     : option.name
             )
         }
