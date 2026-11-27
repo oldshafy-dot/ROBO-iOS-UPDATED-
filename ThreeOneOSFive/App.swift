@@ -63,7 +63,7 @@ struct RoboIOSApp: App {
                         .allowsHitTesting(false)
                 }
             }
-            .preferredColorScheme(appearance == "light" ? .light : .dark)
+            .preferredColorScheme(.dark)
                 .onChange(of: licenseSession.state) { state in
                     if state == .authenticated, licenseSession.hasLiveAuthority {
                         appState.detectSupport()
