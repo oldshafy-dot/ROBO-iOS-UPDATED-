@@ -8,19 +8,28 @@ struct ContentFunctionMetadata: Codable, Equatable {
     let icon: String?
     let game: String?
     let sort: Int?
+    let serverID: String?
+    let passwordRequired: Bool
+    let locked: Bool
 
     init(
         name: String,
         description: String,
         icon: String? = nil,
         game: String? = nil,
-        sort: Int? = nil
+        sort: Int? = nil,
+        serverID: String? = nil,
+        passwordRequired: Bool = false,
+        locked: Bool = false
     ) {
         self.name = name
         self.description = description
         self.icon = icon
         self.game = game
         self.sort = sort
+        self.serverID = serverID
+        self.passwordRequired = passwordRequired
+        self.locked = locked
     }
 
     var gameSlug: String {
@@ -51,6 +60,11 @@ enum ContentFunctionMetadataStore {
 
     static func isManaged(_ packageID: UUID) -> Bool {
         records()[packageID.uuidString] != nil
+    }
+
+    static func itemID(serverID: String) -> UUID? {
+        guard let key = records().first(where: { $0.value.serverID == serverID })?.key else { return nil }
+        return UUID(uuidString: key)
     }
 
     static func remove(_ packageID: UUID) {
