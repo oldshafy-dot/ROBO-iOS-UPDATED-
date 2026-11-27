@@ -18,6 +18,8 @@ struct ContentView: View {
     @State private var showSignOutConfirmation = false
     @State private var showChangeLicense = false
     @State private var showLicenseKey = false
+    @State private var passwordOption: ShafayPatchOption?
+    @State private var patchPassword = ""
     @AppStorage(AppTheme.accentStorageKey) private var accentHex = AppTheme.defaultAccentHex
     @AppStorage(AppTheme.appearanceStorageKey) private var appearance = AppTheme.defaultAppearance
     @State private var profileCountdownNow = Date()
@@ -96,6 +98,27 @@ struct ContentView: View {
             Button(language.text("common.ok"), role: .cancel) { controller.message = nil }
         } message: {
             Text(controller.message ?? "")
+        }
+        .alert("Patch Password", isPresented: Binding(
+            get: { passwordOption != nil },
+            set: { if !$0 { passwordOption = nil; patchPassword = "" } }
+        )) {
+            TextField("Password", text: $patchPassword)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Cancel", role: .cancel) {
+                passwordOption = nil
+                patchPassword = ""
+            }
+            Button("Apply") {
+                guard let option = passwordOption else { return }
+                let password = patchPassword
+                passwordOption = nil
+                patchPassword = ""
+                applyRemotePatch(option, gameSlug: selectedGame?.slug ?? "free-fire", password: password)
+            }
+        } message: {
+            Text("Enter the password for this patch.")
         }
         .onAppear {
             if contentUpdates.integrityCompromised {
@@ -223,7 +246,7 @@ struct ContentView: View {
                     .foregroundStyle(AppTheme.accent)
             }
             banner
-            functionList(items(for: game))
+            remoteFunctionList(for: game)
         }
     }
 
@@ -246,6 +269,90 @@ struct ContentView: View {
             .accessibilityLabel("ROBO banner")
     }
 
+
+    private func remoteFunctionList(for game: ContentGameDescriptor) -> some View {
+        let rows = contentUpdates.options(for: game.slug)
+        return Group {
+            if rows.isEmpty {
+                HStack(spacing: 12) {
+                    Image(systemName: "slider.horizontal.3")
+                        .foregroundStyle(AppTheme.secondaryText)
+                    Text(busy ? language.text("content.checking_updates") : "No patches available.")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(AppTheme.primaryText)
+                    Spacer()
+                    if busy {
+                        ProgressView().tint(AppTheme.accent)
+                    }
+                }
+                .padding(.vertical, 20)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(rows) { option in
+                        remoteFunctionRow(option, game: game)
+                    }
+                }
+            }
+        }
+    }
+
+    private func remoteFunctionRow(
+        _ option: ShafayPatchOption,
+        game: ContentGameDescriptor
+    ) -> some View {
+        let itemID = ContentFunctionMetadataStore.itemID(serverID: option.id)
+        let item = itemID.flatMap { id in items.first(where: { $0.id == id }) }
+        let open = item.map { controller.isOpen($0) } ?? false
+        let waiting = contentUpdates.isInstalling
+
+        return HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(option.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(1)
+
+                if let description = option.description,
+                   !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(description)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .lineLimit(2)
+                }
+
+                if option.passwordRequired == true {
+                    Label("Password required", systemImage: "lock.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if option.locked == true {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(AppTheme.secondaryText)
+            } else if waiting {
+                ProgressView().tint(AppTheme.accent)
+            } else {
+                Toggle("", isOn: Binding(
+                    get: { open },
+                    set: { requestRemoteOpen($0, option: option, game: game) }
+                ))
+                .labelsHidden()
+                .tint(AppTheme.accent)
+                .disabled(
+                    busy
+                    || !appState.isSupported
+                    || appState.kernelExploitRunning
+                )
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
 
     private func functionList(
         _ rows: [PatchLibraryItem],
@@ -776,6 +883,57 @@ struct ContentView: View {
             items: items,
             canAccessFiles: canAccessPatchedFiles
         )
+    }
+
+    private func requestRemoteOpen(
+        _ open: Bool,
+        option: ShafayPatchOption,
+        game: ContentGameDescriptor
+    ) {
+        if option.locked == true {
+            controller.message = "This patch is locked."
+            return
+        }
+
+        if !open {
+            guard let itemID = ContentFunctionMetadataStore.itemID(serverID: option.id),
+                  let item = items.first(where: { $0.id == itemID }) else {
+                return
+            }
+            requestOpen(false, item: item)
+            return
+        }
+
+        if option.passwordRequired == true {
+            passwordOption = option
+            return
+        }
+
+        applyRemotePatch(option, gameSlug: game.slug, password: nil)
+    }
+
+    private func applyRemotePatch(
+        _ option: ShafayPatchOption,
+        gameSlug: String,
+        password: String?
+    ) {
+        Task {
+            do {
+                let id = try await contentUpdates.downloadAndInstall(
+                    option: option,
+                    gameSlug: gameSlug,
+                    session: licenseSession,
+                    password: password,
+                    store: store
+                )
+                guard let item = store.items.first(where: { $0.id == id }) else {
+                    throw LicenseClientError.packageInvalid(option.name)
+                }
+                requestOpen(true, item: item)
+            } catch {
+                controller.message = error.localizedDescription
+            }
+        }
     }
 
     private func requestOpen(_ open: Bool, item: PatchLibraryItem) {
