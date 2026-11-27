@@ -14,7 +14,7 @@ struct ContentView: View {
     @State private var selectedGameID: String?
     @State private var pendingPatchID: UUID?
     @State private var pendingOpen: Bool?
-    @State private var showNotice = true
+    @State private var showNotice = false
     @State private var showSignOutConfirmation = false
     @State private var showChangeLicense = false
     @State private var showLicenseKey = false
@@ -85,7 +85,7 @@ struct ContentView: View {
                 .padding(.bottom, 4)
         }
         .tint(AppTheme.accent)
-.preferredColorScheme(appearance == "light" ? .light : .dark)
+.preferredColorScheme(.dark)
         .alert(
             "ROBO iOS",
             isPresented: Binding(
@@ -124,14 +124,6 @@ struct ContentView: View {
             Task { await contentUpdates.checkForUpdates(session: licenseSession, store: store) }
         }
         .task { await contentUpdates.checkForUpdates(session: licenseSession, store: store) }
-        .task {
-            if let notice = await licenseSession.loginNotice() {
-                noticeMessage = notice.message
-                noticeURL = notice.url
-            } else {
-                showNotice = false
-            }
-        }
     }
 
     private func pageScroll<Content: View>(_ content: Content) -> some View {
