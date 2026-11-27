@@ -126,6 +126,7 @@ final class ContentUpdateController: ObservableObject {
     ]
     @Published private(set) var hasVerifiedPolicy = false
     @Published private(set) var integrityCompromised = false
+    @Published private(set) var optionsByGame: [String: [ShafayPatchOption]] = [:]
 
     private var lastCheckAt: Date?
 
@@ -149,25 +150,14 @@ final class ContentUpdateController: ObservableObject {
             let normal = try await fetchOptions(category: "free_fire_india", session: session)
             let max = try await fetchOptions(category: "pubg_mobile", session: session)
 
-            let all = [
-                (normal, "free-fire"),
-                (max, "free-fire-max")
+            optionsByGame = [
+                "free-fire": normal.filter { $0.available && $0.hasFile },
+                "free-fire-max": max.filter { $0.available && $0.hasFile }
             ]
 
-            for (options, gameSlug) in all {
-                for option in options where option.available && option.hasFile {
-                    try await installRemoteOption(
-                        option,
-                        gameSlug: gameSlug,
-                        session: session
-                    )
-                }
-            }
-
-            store.reload()
-            lastInstalledVersion = ISO8601DateFormatter().string(from: Date())
             hasVerifiedPolicy = true
             requiredRelease = nil
+            store.reload()
         } catch {
             errorMessage = error.localizedDescription
             hasVerifiedPolicy = false
@@ -211,23 +201,35 @@ final class ContentUpdateController: ObservableObject {
         return payload.categories.first(where: { $0.category == category })?.options ?? []
     }
 
-    private func installRemoteOption(
-        _ option: ShafayPatchOption,
+    func downloadAndInstall(
+        option: ShafayPatchOption,
         gameSlug: String,
-        session: LicenseSessionController
-    ) async throws {
+        session: LicenseSessionController,
+        password: String? = nil,
+        store: PatchProjectStore
+    ) async throws -> UUID {
+        guard option.available, option.hasFile else {
+            throw LicenseClientError.packageInvalid(option.name)
+        }
         guard let url = URL(string: option.downloadURL),
               url.scheme?.lowercased() == "https" else {
             throw LicenseClientError.packageInvalid(option.name)
         }
 
+        isInstalling = true
+        defer { isInstalling = false }
+
         let data = try await session.downloadRemotePatch(at: url)
 
         let decoded: DecodedPatchPackage
         do {
-            decoded = try PatchPackageCodec.decode(data, password: nil)
+            decoded = try PatchPackageCodec.decode(data, password: password)
         } catch {
-            throw LicenseClientError.packageInvalid(option.name)
+            throw LicenseClientError.packageInvalid(
+                option.passwordRequired == true
+                    ? "(option.name) (password or file is invalid)"
+                    : option.name
+            )
         }
 
         try PatchProjectLibrary.installVerifiedContentPackage(data)
@@ -238,9 +240,19 @@ final class ContentUpdateController: ObservableObject {
                 description: option.description ?? "",
                 icon: option.icon,
                 game: gameSlug,
-                sort: option.sort
+                sort: option.sort,
+                serverID: option.id,
+                passwordRequired: option.passwordRequired ?? false,
+                locked: option.locked ?? false
             ),
             for: decoded.project.id
         )
+
+        store.reload()
+        return decoded.project.id
+    }
+
+    func options(for gameSlug: String) -> [ShafayPatchOption] {
+        optionsByGame[gameSlug] ?? []
     }
 }
