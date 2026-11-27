@@ -322,7 +322,7 @@ final class LicenseSessionController: ObservableObject {
 
     private static func makeProfile(_ value: StoredShafayLicense) -> LicenseProfile {
         LicenseProfile(
-            licenseID: "shafay-(CatalogTrust.sha256Hex(Data(value.key.utf8)).prefix(16))",
+            licenseID: "shafay-\\(CatalogTrust.sha256Hex(Data(value.key.utf8)).prefix(16))",
             maskedKey: mask(value.key),
             expiresAt: value.expiresAt,
             registeredDevice: value.deviceID,
