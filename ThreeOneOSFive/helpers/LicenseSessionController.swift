@@ -1,5 +1,4 @@
 import Combine
-import CryptoKit
 import Foundation
 import UIKit
 
@@ -9,6 +8,32 @@ enum LicenseGateState: Equatable {
     case signedOut
     case authenticated
     case blocked(String)
+}
+
+private struct ShafayVerifyResponse: Decodable {
+    let success: Bool
+    let status: String?
+    let expiresAt: String?
+    let deviceID: String?
+    let devicesLinked: Int?
+    let maxDevices: Int?
+    let error: String?
+    let message: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case success, status
+        case expiresAt = "expires_at"
+        case deviceID = "device_id"
+        case devicesLinked = "devices_linked"
+        case maxDevices = "max_devices"
+        case error, message
+    }
+}
+
+private struct StoredShafayLicense: Codable {
+    let key: String
+    let expiresAt: String
+    let deviceID: String
 }
 
 @MainActor
@@ -21,622 +46,293 @@ final class LicenseSessionController: ObservableObject {
     @Published private(set) var authorityRevision = 0
     @Published var errorMessage: String?
 
+    private let verifyURL = URL(string: "https://shafaykeyauthadmin.lovable.app/api/public/v1/verify-license")!
+    private let optionsBaseURL = URL(string: "https://shafaykeyauthadmin.lovable.app/api/public/v1/patch/options")!
+    private let storageKey = "robo.shafay.keyauth.v1"
+    private var stored: StoredShafayLicense?
+    private var started = false
+
     var hasLiveAuthority: Bool {
-        _ = authorityRevision
-        return workspaceUnlocked && RuntimePermit.isFresh()
+        guard case .authenticated = state,
+              let stored,
+              let expiry = Self.parseDate(stored.expiresAt) else {
+            return false
+        }
+        return expiry > Date()
     }
 
-    private let identity = DeviceStamp()
-    private var configuration: LicenseClientConfiguration?
-    private var api: AccessChannel?
-    private var credentials: LicenseCredentials?
-    private var pendingActivation: PendingActivation?
-    private var started = false
-    private var validationTask: Task<Void, Never>?
-    private var pulseTask: Task<Void, Never>?
-    private var sessionGeneration = 0
+    var serverBaseURL: URL? {
+        URL(string: "https://shafaykeyauthadmin.lovable.app")
+    }
 
-    private let credentialsAccount = "tok.v3"
-    private let pendingAccount = "enr.v3"
-    private let legacyCredentialsAccount = "session-credentials"
-    private let legacyPendingAccount = "pending-activation"
-    private let displayLicenseKeyAccount = "license-display.v1"
+    var manifestPublicKey: Data? { nil }
 
     func startIfNeeded() async {
         guard !started else { return }
         started = true
         state = .loading
 
-        do {
-            let configuration = try LicenseClientConfiguration.load()
-            self.configuration = configuration
-            api = AccessChannel(configuration: configuration, identity: identity)
-            _ = try identity.installationID()
-            _ = try identity.publicKeyBase64()
+        guard let saved = loadStoredLicense() else {
+            state = .signedOut
+            return
+        }
 
-            if let pending: PendingActivation = try loadSecureValue(account: pendingAccount) {
-                pendingActivation = pending
-                await pollActivation()
-                if case .loading = state {
-                    state = .signedOut
-                }
-                return
-            }
-            guard let stored: LicenseCredentials = try loadSecureValue(
-                account: credentialsAccount
-            ) else {
-                state = .signedOut
-                return
-            }
-            credentials = stored
-            profile = stored.profile
-            displayLicenseKey = try? loadSecureValue(account: displayLicenseKeyAccount)
-            await validateStoredSession()
-        } catch let error as LicenseClientError {
-            if case .unconfigured(let message) = error {
-                state = .unconfigured(message)
-            } else {
-                state = .blocked(error.localizedDescription)
-            }
-        } catch {
-            state = .blocked(error.localizedDescription)
-        }
-    }
-
-    func loginNotice() async -> (message: String, url: URL)? {
-        let fallbackMessage = "Stay connected and get the latest updates, news, and announcements right on your bot!"
-        guard let fallbackURL = URL(string: "https://t.me/roboiosbot") else { return nil }
-        for _ in 0..<40 where api == nil {
-            if case .loading = state {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                continue
-            }
-            break
-        }
-        guard let api, let notice = await api.loginNotice() else {
-            return (fallbackMessage, fallbackURL)
-        }
-        guard notice.enabled else { return nil }
-        let message = notice.message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !message.isEmpty,
-              message.count <= 500,
-              let url = URL(string: notice.url),
-              Self.allowedBotURL(url) else {
-            return (fallbackMessage, fallbackURL)
-        }
-        return (message, url)
-    }
-
-    private static func allowedBotURL(_ url: URL) -> Bool {
-        guard url.scheme?.lowercased() == "https",
-              url.user == nil,
-              url.password == nil,
-              let host = url.host?.lowercased(),
-              host == "t.me" || host == "telegram.me" else {
-            return false
-        }
-        let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return !path.isEmpty && path.count <= 80 && !path.contains("..")
+        stored = saved
+        displayLicenseKey = saved.key
+        profile = Self.makeProfile(saved)
+        await verifySavedLicense(saved)
     }
 
     func beginActivation(licenseKey: String) async {
-        guard !isWorking, let api else { return }
+        guard !isWorking else { return }
+
         let key = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty, key.utf8.count <= 512 else {
+        guard !key.isEmpty else {
             errorMessage = "Invalid License"
             return
         }
 
         isWorking = true
         errorMessage = nil
-        displayLicenseKey = key
         defer { isWorking = false }
+
         do {
-            let installationID = try identity.installationID()
-            let request = ActivationStartRequest(
-                licenseKey: key,
-                deviceModel: Self.hardwareModel(),
-                systemVersion: UIDevice.current.systemVersion,
-                systemBuild: AppInfo.osBuild,
-                appVersion: Bundle.main.clientAppVersion,
-                appBuild: Bundle.main.clientAppBuild,
-                installationID: installationID,
-                deviceHwid: DeviceHWID.value,
-                publicKey: try identity.publicKeyBase64()
-            )
-            let pending = try await api.startActivation(request)
-            guard !pending.activationID.isEmpty,
-                  !pending.pollToken.isEmpty,
-                  !pending.challengeID.isEmpty else {
+            let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? ""
+            var request = URLRequest(url: verifyURL)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 20
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.httpBody = try JSONSerialization.data(withJSONObject: [
+                "key": key,
+                "device_id": deviceID,
+                "product_identifier": "freefire"
+            ])
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
                 throw LicenseClientError.invalidResponse
             }
-            _ = try identity.sign(base64Challenge: pending.challenge)
-            try saveSecureValue(pending, account: pendingAccount)
-            pendingActivation = pending
-            await completePendingActivation()
+
+            let payload = try JSONDecoder().decode(ShafayVerifyResponse.self, from: data)
+
+            if payload.success == true, payload.status?.lowercased() == "active",
+               let expiresAt = payload.expiresAt, !expiresAt.isEmpty {
+                let saved = StoredShafayLicense(
+                    key: key,
+                    expiresAt: expiresAt,
+                    deviceID: payload.deviceID ?? deviceID
+                )
+                saveStoredLicense(saved)
+                stored = saved
+                displayLicenseKey = key
+                profile = Self.makeProfile(saved)
+                state = .authenticated
+                workspaceUnlocked = true
+                authorityRevision += 1
+                errorMessage = nil
+                return
+            }
+
+            if payload.error == "device_limit_reached" || http.statusCode == 403 {
+                throw LicenseClientError.server("Key is already bound to another device.")
+            }
+
+            throw LicenseClientError.server(
+                payload.message ?? payload.error ?? "Invalid License"
+            )
         } catch {
+            state = .signedOut
+            workspaceUnlocked = false
             errorMessage = Self.friendlyLicenseMessage(error.localizedDescription)
         }
     }
 
     func sceneBecameActive() async {
-        switch state {
-        case .signedOut:
-            if pendingActivation != nil {
-                await pollActivation()
-            }
-        case .authenticated, .blocked(_):
-            if credentials != nil {
-                await renewAuthorityIfNeeded()
-            }
-        default:
-            break
-        }
+        guard let stored else { return }
+        await verifySavedLicense(stored)
     }
 
-    func pollActivation() async {
-        guard !isWorking,
-              pendingActivation != nil else { return }
-        isWorking = true
-        errorMessage = nil
-        defer { isWorking = false }
-        await completePendingActivation()
-    }
-
-    private func completePendingActivation() async {
-        guard let api,
-              let pending = pendingActivation else { return }
-
-        do {
-            let request = ActivationStatusRequest(
-                activationID: pending.activationID,
-                pollToken: pending.pollToken,
-                installationID: try identity.installationID(),
-                challengeID: pending.challengeID,
-                proofSignature: try identity.sign(base64Challenge: pending.challenge)
-            )
-            let response = try await api.activationStatus(request)
-            switch response.status.lowercased() {
-            case "active", "activated", "complete":
-                guard let newCredentials = response.credentials else {
-                    throw LicenseClientError.invalidResponse
-                }
-                try await finishAuthorization(credentials: newCredentials)
-            default:
-                abandonPendingActivation(
-                    message: "Activation did not complete. Enter your license key to try again."
-                )
-            }
-        } catch LicenseClientError.unauthorized,
-                LicenseClientError.invalidChallenge,
-                LicenseClientError.invalidResponse {
-            if credentials != nil {
-                state = .authenticated
-                errorMessage = "Finishing activation. Keep the app open."
-                startPulse()
-                return
-            }
-            abandonPendingActivation(message: "Could not confirm activation. Enter your license key to try again.")
-        } catch {
-            if credentials != nil {
-                state = .authenticated
-                startPulse()
-                return
-            }
-            errorMessage = error.localizedDescription
-            state = .signedOut
-        }
-    }
-
-    func cancelEnrollment() {
-        abandonPendingActivation(message: nil)
-    }
-
-    private func abandonPendingActivation(message: String?) {
-        VaultBox.delete(account: pendingAccount)
-        VaultBox.delete(account: legacyPendingAccount)
-        pendingActivation = nil
-        state = .signedOut
-        errorMessage = message
-    }
-
-    func retrySession() async {
-        guard credentials != nil else {
-            // A previous Keychain read may have failed while locked. Retry
-            // loading the saved session instead of starting a new one.
-            started = false
-            await startIfNeeded()
+    func renewAuthorityIfNeeded() async {
+        guard let stored else { return }
+        guard let expiry = Self.parseDate(stored.expiresAt), expiry > Date() else {
+            logout()
+            errorMessage = "License expired."
             return
         }
-        await validateStoredSession()
-    }
-
-    func logout() {
-        sessionGeneration += 1
-        validationTask?.cancel()
-        validationTask = nil
-        pulseTask?.cancel()
-        pulseTask = nil
-        RuntimePermit.clear()
-        workspaceUnlocked = false
-        authorityRevision += 1
-        VaultBox.delete(account: credentialsAccount)
-        VaultBox.delete(account: legacyCredentialsAccount)
-        VaultBox.delete(account: pendingAccount)
-        VaultBox.delete(account: legacyPendingAccount)
-        VaultBox.delete(account: displayLicenseKeyAccount)
-        credentials = nil
-        pendingActivation = nil
-        profile = nil
-        displayLicenseKey = nil
-        errorMessage = nil
-        state = .signedOut
-    }
-
-    func authorizedAccessToken() async throws -> String {
-        if !hasLiveAuthority || Self.tokenNeedsRefresh(credentials?.accessExpiresAt ?? "") {
-            try await requireOperationLease()
+        if state != .authenticated {
+            await verifySavedLicense(stored)
         }
-        guard hasLiveAuthority,
-              state == .authenticated,
-              let token = credentials?.accessToken,
-              !Self.tokenNeedsRefresh(credentials?.accessExpiresAt ?? "") else {
-            throw LicenseClientError.unauthorized
-        }
-        return token
     }
 
     func requireOperationLease() async throws {
-        guard credentials != nil else {
-            throw LicenseClientError.unauthorized
-        }
-        if Self.tokenNeedsRefresh(credentials?.accessExpiresAt ?? "") {
-            await validateStoredSession()
-        } else {
-            try await attachLease()
-        }
         guard hasLiveAuthority else {
             throw LicenseClientError.unauthorized
         }
     }
 
-    func renewAuthorityIfNeeded() async {
-        guard credentials != nil else { return }
-        switch state {
-        case .authenticated, .blocked(_):
-            break
-        default:
+    func authorizedAccessToken() async throws -> String {
+        guard hasLiveAuthority else {
+            throw LicenseClientError.unauthorized
+        }
+        return stored?.key ?? ""
+    }
+
+    func loginNotice() async -> (message: String, url: URL)? {
+        nil
+    }
+
+    func retrySession() async {
+        guard let stored else {
+            started = false
+            await startIfNeeded()
             return
         }
-        do {
-            try await requireOperationLease()
-        } catch LicenseClientError.unauthorized {
+        await verifySavedLicense(stored)
+    }
+
+    func logout() {
+        UserDefaults.standard.removeObject(forKey: storageKey)
+        stored = nil
+        profile = nil
+        displayLicenseKey = nil
+        workspaceUnlocked = false
+        authorityRevision += 1
+        errorMessage = nil
+        state = .signedOut
+    }
+
+    func fetchLatestManifest() async throws -> SignedManifestEnvelope? {
+        nil
+    }
+
+    func downloadContentPackage(at url: URL) async throws -> Data {
+        guard hasLiveAuthority else {
+            throw LicenseClientError.unauthorized
+        }
+        let (data, response) = try await URLSession.shared.data(from: url)
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            throw LicenseClientError.server("Patch download failed.")
+        }
+        guard data.count <= 32 * 1024 * 1024 else {
+            throw LicenseClientError.packageInvalid(url.lastPathComponent)
+        }
+        return data
+    }
+
+    func downloadRemotePatch(at url: URL) async throws -> Data {
+        try await downloadContentPackage(at: url)
+    }
+
+    func authorizeWrite(
+        packageID: UUID,
+        packageData: Data,
+        apply: Bool
+    ) async throws {
+        _ = packageID
+        _ = packageData
+        _ = apply
+        guard hasLiveAuthority else {
+            throw LicenseClientError.unauthorized
+        }
+    }
+
+    private func verifySavedLicense(_ saved: StoredShafayLicense) async {
+        guard let expiry = Self.parseDate(saved.expiresAt), expiry > Date() else {
             logout()
-            errorMessage = LicenseClientError.unauthorized.localizedDescription
-        } catch {
-            if !RuntimePermit.isFresh() {
+            errorMessage = "License expired."
+            return
+        }
+
+        do {
+            let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? ""
+            guard deviceID == saved.deviceID || saved.deviceID.isEmpty else {
+                state = .signedOut
                 workspaceUnlocked = false
-                authorityRevision += 1
+                errorMessage = "Key is already bound to another device."
+                return
+            }
+
+            var request = URLRequest(url: verifyURL)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 20
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.httpBody = try JSONSerialization.data(withJSONObject: [
+                "key": saved.key,
+                "device_id": deviceID,
+                "product_identifier": "freefire"
+            ])
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                throw LicenseClientError.invalidResponse
+            }
+
+            let payload = try JSONDecoder().decode(ShafayVerifyResponse.self, from: data)
+            guard payload.success == true,
+                  payload.status?.lowercased() == "active",
+                  let expiresAt = payload.expiresAt,
+                  let refreshed = Self.parseDate(expiresAt),
+                  refreshed > Date() else {
+                if payload.error == "device_limit_reached" || http.statusCode == 403 {
+                    throw LicenseClientError.server("Key is already bound to another device.")
+                }
+                throw LicenseClientError.unauthorized
+            }
+
+            let refreshedStored = StoredShafayLicense(
+                key: saved.key,
+                expiresAt: expiresAt,
+                deviceID: payload.deviceID ?? saved.deviceID
+            )
+            saveStoredLicense(refreshedStored)
+            stored = refreshedStored
+            profile = Self.makeProfile(refreshedStored)
+            displayLicenseKey = refreshedStored.key
+            state = .authenticated
+            workspaceUnlocked = true
+            authorityRevision += 1
+            errorMessage = nil
+        } catch {
+            workspaceUnlocked = false
+            if case LicenseClientError.unauthorized = error {
+                state = .signedOut
+                errorMessage = "License is not active."
+            } else {
+                state = .blocked(error.localizedDescription)
                 errorMessage = error.localizedDescription
             }
         }
     }
 
-    func fetchLatestManifest() async throws -> SignedManifestEnvelope? {
-        guard let api else {
-            throw LicenseClientError.unconfigured("Unavailable.")
+    private func loadStoredLicense() -> StoredShafayLicense? {
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else {
+            return nil
         }
-        let token = try await authorizedAccessToken()
-        return try await api.latestManifest(
-            accessToken: token,
-            appVersion: Bundle.main.clientAppVersion,
-            appBuild: Bundle.main.clientAppBuild
+        return try? JSONDecoder().decode(StoredShafayLicense.self, from: data)
+    }
+
+    private func saveStoredLicense(_ value: StoredShafayLicense) {
+        if let data = try? JSONEncoder().encode(value) {
+            UserDefaults.standard.set(data, forKey: storageKey)
+        }
+    }
+
+    private static func makeProfile(_ value: StoredShafayLicense) -> LicenseProfile {
+        LicenseProfile(
+            licenseID: "shafay-(CatalogTrust.sha256Hex(Data(value.key.utf8)).prefix(16))",
+            maskedKey: mask(value.key),
+            expiresAt: value.expiresAt,
+            registeredDevice: value.deviceID,
+            udid: value.deviceID
         )
     }
 
-    func downloadContentPackage(at url: URL) async throws -> Data {
-        guard let api else {
-            throw LicenseClientError.unconfigured("Unavailable.")
-        }
-        let token = try await authorizedAccessToken()
-        return try await api.downloadPackage(
-            at: url,
-            accessToken: token,
-            maximumBytes: 8 * 1_024 * 1_024
-        )
-    }
-
-    var manifestPublicKey: Data? {
-        configuration?.manifestPublicKey
-    }
-
-    var serverBaseURL: URL? {
-        configuration?.serverBaseURL
-    }
-
-    private func validateStoredSession() async {
-        if let validationTask {
-            await validationTask.value
-            return
-        }
-        let task = Task { @MainActor in
-            await self.performStoredSessionValidation()
-        }
-        validationTask = task
-        await task.value
-        validationTask = nil
-    }
-
-    private func performStoredSessionValidation() async {
-        guard let api, let current = credentials else { return }
-        let generation = sessionGeneration
-        isWorking = true
-        errorMessage = nil
-        defer { isWorking = false }
-
-        do {
-            let validated = try await prove(
-                credential: current.accessToken,
-                type: "access",
-                api: api,
-                refresh: false
-            )
-            guard generation == sessionGeneration else { return }
-            try await finishAuthorization(credentials: validated)
-        } catch LicenseClientError.unauthorized {
-            guard generation == sessionGeneration else { return }
-            do {
-                let refreshed = try await prove(
-                    credential: current.refreshToken,
-                    type: "refresh",
-                    api: api,
-                    refresh: true
-                )
-                guard generation == sessionGeneration else { return }
-                try await finishAuthorization(credentials: refreshed)
-            } catch LicenseClientError.unauthorized {
-                guard generation == sessionGeneration else { return }
-                logout()
-                errorMessage = LicenseClientError.unauthorized.localizedDescription
-            } catch {
-                guard generation == sessionGeneration else { return }
-                state = .blocked(error.localizedDescription)
-            }
-        } catch {
-            guard generation == sessionGeneration else { return }
-            state = .blocked(error.localizedDescription)
-        }
-    }
-
-    private func prove(
-        credential: String,
-        type: String,
-        api: AccessChannel,
-        refresh: Bool
-    ) async throws -> LicenseCredentials {
-        let installationID = try identity.installationID()
-        let challenge = try await api.proofChallenge(
-            credential: credential,
-            type: type,
-            installationID: installationID
-        )
-        guard !challenge.challengeID.isEmpty else {
-            throw LicenseClientError.invalidChallenge
-        }
-        let request = ProofRequest(
-            installationID: installationID,
-            challengeID: challenge.challengeID,
-            proofSignature: try identity.sign(base64Challenge: challenge.challenge)
-        )
-        if refresh {
-            return try await api.refreshSession(refreshToken: credential, request: request)
-        }
-        return try await api.validateSession(accessToken: credential, request: request)
-    }
-
-    private func finishAuthorization(credentials: LicenseCredentials) async throws {
-        guard !credentials.accessToken.isEmpty,
-              credentials.accessToken.utf8.count <= 8_192,
-              !credentials.refreshToken.isEmpty,
-              credentials.refreshToken.utf8.count <= 8_192,
-              !credentials.profile.licenseID.isEmpty,
-              credentials.profile.licenseID.utf8.count <= 512,
-              (credentials.profile.maskedKey?.utf8.count ?? 0) <= 512,
-              credentials.profile.expiresAt.utf8.count <= 128,
-              credentials.profile.registeredDevice.utf8.count <= 256,
-              (credentials.profile.udid?.utf8.count ?? 0) <= 512 else {
-            throw LicenseClientError.invalidResponse
-        }
-        try saveSecureValue(credentials, account: credentialsAccount)
-        if let displayLicenseKey, !displayLicenseKey.isEmpty {
-            try saveSecureValue(displayLicenseKey, account: displayLicenseKeyAccount)
-        }
-        VaultBox.delete(account: pendingAccount)
-        VaultBox.delete(account: legacyPendingAccount)
-        self.credentials = credentials
-        profile = credentials.profile
-        pendingActivation = nil
-        state = .authenticated
-        do {
-            try await attachLease()
-            errorMessage = nil
-        } catch {
-            errorMessage = "Finishing activation. Keep the app open."
-        }
-        startPulse()
-    }
-
-    private func attachLease() async throws {
-        guard let api, let current = credentials else {
-            throw LicenseClientError.unauthorized
-        }
-        let lease = try await api.issueLease(accessToken: current.accessToken)
-        guard !lease.lease.isEmpty,
-              lease.lease.utf8.count <= 256,
-              let until = Self.parseDate(lease.expiresAt),
-              until.timeIntervalSinceNow > 15 else {
-            throw LicenseClientError.unauthorized
-        }
-        let capped = min(until, Date().addingTimeInterval(90))
-        let host = configuration?.serverBaseURL.host ?? ""
-        workspaceUnlocked = RuntimePermit.bind(
-            token: current.accessToken,
-            licenseID: current.profile.licenseID,
-            installationID: try identity.installationID(),
-            host: host,
-            lease: lease.lease,
-            until: capped
-        )
-        authorityRevision += 1
-        guard workspaceUnlocked else {
-            throw LicenseClientError.unauthorized
-        }
-    }
-
-    private func startPulse() {
-        pulseTask?.cancel()
-        let generation = sessionGeneration
-        pulseTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 40_000_000_000)
-                guard !Task.isCancelled else { return }
-                await self?.pulseIfNeeded(generation: generation)
-            }
-        }
-    }
-
-    private func pulseIfNeeded(generation: Int) async {
-        guard generation == sessionGeneration,
-              credentials != nil,
-              {
-                  if case .authenticated = state { return true }
-                  if case .blocked = state { return true }
-                  return false
-              }() else { return }
-        await renewAuthorityIfNeeded()
-    }
-
-    func authorizeWrite(packageID: UUID, packageData: Data, apply: Bool) async throws {
-        let generation = sessionGeneration
-        try await requireOperationLease()
-        guard let api else { throw LicenseClientError.unauthorized }
-        let token = try await authorizedAccessToken()
-        guard generation == sessionGeneration else { throw LicenseClientError.unauthorized }
-        let requestID = UUID().uuidString.lowercased()
-        let startedAt = ContinuousClock.now
-        let digest = CatalogTrust.sha256Hex(packageData)
-        let envelope = try await api.issueWritePermit(
-            accessToken: token,
-            request: WritePermitRequest(
-                requestID: requestID,
-                packageID: packageID.uuidString.lowercased(),
-                sha256: digest,
-                action: apply ? "apply" : "restore",
-                appVersion: Bundle.main.clientAppVersion,
-                appBuild: Bundle.main.clientAppBuild
-            )
-        )
-        try Task.checkCancellation()
-        guard generation == sessionGeneration,
-              startedAt.duration(to: .now) < .seconds(25) else {
-            throw LicenseClientError.unauthorized
-        }
-        try verifyWritePermit(
-            envelope,
-            requestID: requestID,
-            packageID: packageID,
-            sha256: digest,
-            apply: apply
-        )
-        guard hasLiveAuthority else {
-            throw LicenseClientError.unauthorized
-        }
-    }
-
-    private func verifyWritePermit(
-        _ envelope: SignedWritePermit,
-        requestID: String,
-        packageID: UUID,
-        sha256: String,
-        apply: Bool
-    ) throws {
-        guard let publicKey = configuration?.manifestPublicKey,
-              let permitData = Data(base64Encoded: envelope.permitBase64),
-              permitData.count <= 8_192,
-              let signature = Data(base64Encoded: envelope.signature),
-              signature.count == 64 else {
-            throw LicenseClientError.unauthorized
-        }
-        let key = try Curve25519.Signing.PublicKey(rawRepresentation: publicKey)
-        guard key.isValidSignature(signature, for: permitData),
-              let permit = try? JSONDecoder().decode(WritePermit.self, from: permitData) else {
-            throw LicenseClientError.unauthorized
-        }
-        let expires = Self.parseDate(permit.expiresAt)
-        guard permit.scope == "write",
-              permit.requestID == requestID,
-              permit.packageID == packageID.uuidString.lowercased(),
-              permit.sha256 == sha256,
-              permit.action == (apply ? "apply" : "restore"),
-              permit.installationID == (try identity.installationID()),
-              permit.appVersion == Bundle.main.clientAppVersion,
-              permit.appBuild == Bundle.main.clientAppBuild,
-              let expires,
-              expires.timeIntervalSinceNow > 1,
-              expires.timeIntervalSinceNow < 180 else {
-            throw LicenseClientError.unauthorized
-        }
-    }
-
-    private func saveSecureValue<Value: Encodable>(
-        _ value: Value,
-        account: String
-    ) throws {
-        let plain = try JSONEncoder().encode(value)
-        let packed = try RuntimePermit.wrap(
-            plain,
-            installationID: try identity.installationID(),
-            publicKey: try identity.publicKeyBase64()
-        )
-        try VaultBox.write(packed, account: account)
-    }
-
-    private func loadSecureValue<Value: Decodable>(account: String) throws -> Value? {
-        if let value: Value = try decodeSecureValue(account: account) {
-            return value
-        }
-        if account == credentialsAccount {
-            return try decodeSecureValue(account: legacyCredentialsAccount)
-        }
-        if account == pendingAccount {
-            return try decodeSecureValue(account: legacyPendingAccount)
-        }
-        return nil
-    }
-
-    private func decodeSecureValue<Value: Decodable>(account: String) throws -> Value? {
-        guard let data = try VaultBox.read(account: account) else { return nil }
-        do {
-            let plain = try RuntimePermit.unwrap(
-                data,
-                installationID: try identity.installationID(),
-                publicKey: try identity.publicKeyBase64()
-            )
-            return try JSONDecoder().decode(Value.self, from: plain)
-        } catch {
-            // Temporary Keychain/identity failures must not erase a pending activation.
-            // Keep the saved bytes for retry; only explicit logout removes them.
-            throw LicenseClientError.keychain
-        }
-    }
-
-    private static func hardwareModel() -> String {
-        var info = utsname()
-        uname(&info)
-        let bytes = withUnsafeBytes(of: &info.machine) { rawBuffer in
-            rawBuffer.prefix { $0 != 0 }
-        }
-        return String(decoding: bytes, as: UTF8.self)
+    private static func mask(_ key: String) -> String {
+        guard key.count > 8 else { return key }
+        return String(key.prefix(4)) + String(repeating: "•", count: max(2, key.count - 8)) + String(key.suffix(4))
     }
 
     private static func parseDate(_ value: String) -> Date? {
@@ -647,26 +343,9 @@ final class LicenseSessionController: ObservableObject {
         return formatter.date(from: value)
     }
 
-    private static func tokenNeedsRefresh(_ value: String) -> Bool {
-        guard let date = parseDate(value) else { return true }
-        return date.timeIntervalSinceNow < 30
-    }
-
     private static func friendlyLicenseMessage(_ raw: String) -> String {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lower = text.lowercased()
-        if text.isEmpty
-            || lower.contains("too small")
-            || lower.contains("too big")
-            || lower.contains("expected")
-            || lower.contains("invalid string")
-            || lower.contains("invalid type")
-            || lower.contains("required")
-            || lower.contains("invalid request")
-            || lower.contains("enter a valid")
-            || lower.contains("invalid license") {
-            return "Invalid License"
-        }
+        if text.isEmpty { return "Invalid License" }
         return text
     }
 }
